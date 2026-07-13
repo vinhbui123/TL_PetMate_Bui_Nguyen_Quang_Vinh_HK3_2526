@@ -1,0 +1,2 @@
+ALTER TABLE pets
+ADD COLUMN price VARCHAR(50);

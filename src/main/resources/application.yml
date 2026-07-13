@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: petAppServer
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/petmate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate # Flyway is managing the schema
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://securetoken.google.com/test-mobile-app-8c2ce
+
+  cloudinary:
+    cloud-name: do3nktaxg
+    api-key: 922563787399544
+    api-secret: jIkB12D4XBjCZidV_0UiAvgkFeI
+
+server:
+  port: 8080
