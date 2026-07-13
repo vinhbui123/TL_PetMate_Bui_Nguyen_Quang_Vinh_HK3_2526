@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">PetMate</string>
+    <string name="action_go">Go</string>
+    <string name="baking_title">Baking with Gemini</string>
+    <string name="label_prompt">Prompt</string>
+    <string name="prompt_placeholder">Provide a recipe for the baked goods in the image</string>
+    <string name="image1_description">Cupcake</string>
+    <string name="image2_description">Cookies</string>
+    <string name="image3_description">Cake</string>
+    <string name="results_placeholder">(Results will appear here)</string>
+
+    <!-- TODO: Replace with your actual Web Client ID from Firebase Console -->
+    <!-- Go to Firebase Console > Authentication > Sign-in method > Google > Web client ID -->
+    <string name="default_web_client_id">320449311660-o13g5i2dm0lruk9gl2uhdjsjgbu20d4p.apps.googleusercontent.com</string>
+
+    <!-- TODO: Replace with your Facebook App ID from developers.facebook.com -->
+    <string name="facebook_app_id">2143905963130973</string>
+    <string name="fb_login_protocol_scheme">fb2143905963130973</string>
+    <string name="facebook_client_token">78b2645f7466b81fcd420c9e0c2d3766</string>
+</resources>
