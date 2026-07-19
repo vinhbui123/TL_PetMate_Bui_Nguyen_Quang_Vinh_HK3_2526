@@ -1,9 +1,8 @@
 package com.petmate.server.enums;
 
-public enum AdStatus {
-    AVAILABLE,
-    SOLD,
-    HIDDEN,
+public enum ReportStatus {
     PENDING,
+    REVIEWED,
+    RESOLVED,
     REJECTED
 }

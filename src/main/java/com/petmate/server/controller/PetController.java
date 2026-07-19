@@ -7,6 +7,8 @@ import com.petmate.server.enums.AdStatus;
 import com.petmate.server.repository.PetRepository;
 import com.petmate.server.repository.UserRepository;
 import com.petmate.server.service.CloudinaryService;
+import com.petmate.server.service.FirebaseService;
+import com.petmate.server.enums.RoleType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,13 +28,14 @@ public class PetController {
     private final PetRepository petRepository;
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+    private final FirebaseService firebaseService;
 
     @GetMapping
     public ResponseEntity<List<Pet>> getAllPets(@RequestParam(required = false) String category) {
         if (category != null && !category.isEmpty()) {
-            return ResponseEntity.ok(petRepository.findByCategory(category));
+            return ResponseEntity.ok(petRepository.findByCategoryAndStatus(category, AdStatus.AVAILABLE));
         }
-        return ResponseEntity.ok(petRepository.findAll());
+        return ResponseEntity.ok(petRepository.findByStatus(AdStatus.AVAILABLE));
     }
 
     @GetMapping("/{id}")
@@ -40,6 +43,11 @@ public class PetController {
         return petRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Pet>> getPetsByUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(petRepository.findByUserId(userId));
     }
 
     @GetMapping("/my-pets")
@@ -56,21 +64,73 @@ public class PetController {
         Optional<User> userOpt = userRepository.findByProviderId(uid);
         if (userOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
+        User owner = userOpt.get();
         Pet pet = Pet.builder()
                 .name(dto.getName())
                 .breed(dto.getBreed())
                 .age(dto.getAge())
                 .weight(dto.getWeight())
                 .gender(dto.getGender())
-                .distance(dto.getDistance())
                 .price(dto.getPrice())
                 .description(dto.getDescription())
                 .category(dto.getCategory())
-                .status(dto.getStatus() != null ? dto.getStatus() : AdStatus.AVAILABLE)
-                .user(userOpt.get())
+                .status(AdStatus.PENDING)
+                .latitude(owner.getLatitude())
+                .longitude(owner.getLongitude())
+                .user(owner)
                 .build();
         
         return ResponseEntity.ok(petRepository.save(pet));
+    }
+
+    @GetMapping("/pending")
+    public ResponseEntity<List<Pet>> getPendingPets(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        String uid = jwt.getSubject();
+        Optional<User> userOpt = userRepository.findByProviderId(uid);
+        if (userOpt.isEmpty() || userOpt.get().getRole() != RoleType.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(petRepository.findByStatus(AdStatus.PENDING));
+    }
+
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<Pet>> getAdminAllPets(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        String uid = jwt.getSubject();
+        Optional<User> userOpt = userRepository.findByProviderId(uid);
+        if (userOpt.isEmpty() || userOpt.get().getRole() != RoleType.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(petRepository.findAll());
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Pet> updatePetStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @RequestParam AdStatus status) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        String uid = jwt.getSubject();
+        Optional<User> userOpt = userRepository.findByProviderId(uid);
+        if (userOpt.isEmpty() || userOpt.get().getRole() != RoleType.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Optional<Pet> petOpt = petRepository.findById(id);
+        if (petOpt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Pet pet = petOpt.get();
+        pet.setStatus(status);
+        petRepository.save(pet);
+
+        // Send FCM Notification
+        if (pet.getUser() != null) {
+            String title = "Cập nhật Tin đăng";
+            String body = status == AdStatus.AVAILABLE 
+                ? "Tin đăng thú cưng '" + pet.getName() + "' của bạn đã được duyệt!" 
+                : (status == AdStatus.REJECTED ? "Tin đăng thú cưng '" + pet.getName() + "' của bạn đã bị từ chối." : "Tin đăng của bạn đã được cập nhật.");
+            firebaseService.sendNotification(pet.getUser().getId(), title, body, null);
+        }
+
+        return ResponseEntity.ok(pet);
     }
 
     @PutMapping("/{id}")
@@ -91,7 +151,6 @@ public class PetController {
         if (dto.getAge() != null) pet.setAge(dto.getAge());
         if (dto.getWeight() != null) pet.setWeight(dto.getWeight());
         if (dto.getGender() != null) pet.setGender(dto.getGender());
-        if (dto.getDistance() != null) pet.setDistance(dto.getDistance());
         if (dto.getPrice() != null) pet.setPrice(dto.getPrice());
         if (dto.getDescription() != null) pet.setDescription(dto.getDescription());
         if (dto.getCategory() != null) pet.setCategory(dto.getCategory());
@@ -105,11 +164,15 @@ public class PetController {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         String uid = jwt.getSubject();
         
+        Optional<User> userOpt = userRepository.findByProviderId(uid);
+        if (userOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        User currentUser = userOpt.get();
+
         Optional<Pet> petOpt = petRepository.findById(id);
         if (petOpt.isEmpty()) return ResponseEntity.notFound().build();
         
         Pet pet = petOpt.get();
-        if (pet.getUser() == null || !uid.equals(pet.getUser().getProviderId())) {
+        if (pet.getUser() == null || (!uid.equals(pet.getUser().getProviderId()) && currentUser.getRole() != RoleType.ADMIN)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

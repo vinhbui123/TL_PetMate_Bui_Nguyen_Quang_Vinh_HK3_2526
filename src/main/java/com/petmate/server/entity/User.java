@@ -7,6 +7,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id
@@ -35,6 +38,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "VARCHAR(50)")
+    @Builder.Default
     private com.petmate.server.enums.RoleType role = com.petmate.server.enums.RoleType.MEMBER;
 
     private String phone;
@@ -44,7 +48,11 @@ public class User {
     @Column(name = "avatar_url", length = 1000)
     private String avatarUrl;
 
+    private Double latitude;
+    private Double longitude;
+
     @Column(length = 50)
+    @Builder.Default
     private String status = "PENDING";
 
     @CreationTimestamp

@@ -34,3 +34,14 @@ spring:
 
 server:
   port: 8080
+
+firebase:
+  credentials:
+    path: classpath:firebase-config.json
+
+groq:
+  api:
+    key: ${GROQ_API_KEY:your_api_key_here}
+    url: https://api.groq.com/openai/v1/chat/completions
+  model:
+    id: openai/gpt-oss-120b

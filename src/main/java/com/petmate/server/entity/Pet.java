@@ -7,6 +7,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "pets")
 @Getter
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Pet {
 
     @Id
@@ -27,7 +30,6 @@ public class Pet {
     private String age;
     private String weight;
     private String gender;
-    private String distance;
     private String price;
 
     @Column(columnDefinition = "TEXT")
@@ -38,13 +40,18 @@ public class Pet {
 
     private String category;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    private Double latitude;
+    private Double longitude;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "providerId", "provider", "createdAt", "updatedAt"})
     private User user;
 
     @Enumerated(EnumType.STRING)
     @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.VARCHAR)
     @Column(length = 20)
+    @Builder.Default
     private com.petmate.server.enums.AdStatus status = com.petmate.server.enums.AdStatus.AVAILABLE;
 
     @CreationTimestamp

@@ -10,7 +10,6 @@ public class PetRequestDto {
     private String age;
     private String weight;
     private String gender;
-    private String distance;
     private String price;
     private String description;
     private String category;

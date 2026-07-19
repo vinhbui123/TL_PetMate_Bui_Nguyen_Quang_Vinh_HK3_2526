@@ -69,7 +69,6 @@ public class ExcelDataSeeder implements CommandLineRunner {
                         .category(category)
                         .breed("Không xác định")
                         .age("Không xác định")
-                        .distance("1.5km")
                         .build();
 
                 petRepository.save(pet);
@@ -122,20 +121,42 @@ public class ExcelDataSeeder implements CommandLineRunner {
                 "tai cụp", "lông dài", "lông ngắn", "tabby"
         };
 
-        // Từ khóa CHIM
+        // Từ khóa CHIM CẢNH
         String[] birdKeywords = {
-                "chim", "vẹt", "yến", "chào mào", "sáo",
+                "chim", "vẹt", "yến phụng", "chào mào", "sáo",
                 "parrot", "bird", "bồ câu", "cu gáy",
                 "két", "cockatiel", "canary", "hoàng yến",
-                "gà", "đại bàng", "cú", "chích chòe", "sẻ"
+                "đại bàng", "cú", "chích chòe", "sẻ"
         };
 
-        // Từ khóa THÚ CƯNG KHÁC (thỏ, chuột hamster, bò sát, cá...)
+        // Từ khóa CÁ CẢNH
+        String[] fishKeywords = {
+                "cá", "fish", "bể cá", "koi", "betta",
+                "cá vàng", "cá chép", "cá rồng", "cá bảy màu",
+                "cá dĩa", "cá neon", "cá guppy", "hồ cá"
+        };
+
+        // Từ khóa HAMSTER / Gặm nhấm nhỏ
+        String[] hamsterKeywords = {
+                "hamster", "chuột", "chinchilla", "guinea pig",
+                "sóc", "nhím"
+        };
+
+        // Từ khóa THỎ
+        String[] rabbitKeywords = {
+                "thỏ", "rabbit", "bunny"
+        };
+
+        // Từ khóa GIA CẦM
+        String[] poultryKeywords = {
+                "gà", "vịt", "ngan", "ngỗng", "chim cút",
+                "gà kiểng", "gà tre", "gà chọi"
+        };
+
+        // Từ khóa KHÁC (bò sát, etc.)
         String[] otherKeywords = {
-                "thỏ", "rabbit", "bunny", "hamster", "chuột",
                 "rùa", "turtle", "rắn", "snake", "rồng", "gecko",
-                "chinchilla", "guinea pig", "sóc", "nhím",
-                "cá", "fish", "bể cá", "lồng"
+                "bò sát", "tắc kè", "kỳ nhông", "iguana"
         };
 
         for (String kw : dogKeywords) {
@@ -144,12 +165,25 @@ public class ExcelDataSeeder implements CommandLineRunner {
         for (String kw : catKeywords) {
             if (text.contains(kw)) return "CATS";
         }
+        // Gia cầm kiểm tra TRƯỚC chim cảnh vì "gà" nếu nằm trong birdKeywords sẽ sai
+        for (String kw : poultryKeywords) {
+            if (text.contains(kw)) return "POULTRY";
+        }
         for (String kw : birdKeywords) {
-            if (text.contains(kw)) return "PARROT";
+            if (text.contains(kw)) return "BIRDS";
+        }
+        for (String kw : fishKeywords) {
+            if (text.contains(kw)) return "FISH";
+        }
+        for (String kw : hamsterKeywords) {
+            if (text.contains(kw)) return "HAMSTERS";
+        }
+        for (String kw : rabbitKeywords) {
+            if (text.contains(kw)) return "RABBITS";
         }
         for (String kw : otherKeywords) {
-            if (text.contains(kw)) return "RABBIT";
+            if (text.contains(kw)) return "OTHER";
         }
-        return "DOGS"; // Mặc định về DOGS nếu không nhận diện được
+        return "OTHER"; // Mặc định về OTHER nếu không nhận diện được
     }
 }
