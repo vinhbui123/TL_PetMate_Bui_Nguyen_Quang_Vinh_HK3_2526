@@ -1,7 +1,6 @@
 package com.example.petmate.ui.auth
 
 import android.util.Patterns
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource

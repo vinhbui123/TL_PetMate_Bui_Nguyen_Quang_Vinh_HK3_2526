@@ -3,56 +3,42 @@ package com.example.petmate
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import com.example.petmate.model.Pet
-import com.example.petmate.ui.PetDetailsScreen
-import com.example.petmate.ui.PetDiscoveryScreen
-import com.example.petmate.ui.theme.PetMateTheme
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import androidx.activity.compose.BackHandler
-import androidx.core.content.ContextCompat
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.graphics.Color
-import com.example.petmate.model.PetMarketItem
-import com.example.petmate.ui.PetMarketScreen
+import com.example.petmate.ui.theme.PetMateTheme
+import com.example.petmate.ui.navigation.Screen
+import com.example.petmate.ui.navigation.NavGraph
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.example.petmate.network.NetworkClient
+import com.example.petmate.network.ChatWebSocketManager
 import com.example.petmate.ui.auth.ForgotPasswordScreen
 import com.example.petmate.ui.auth.LoginScreen
 import com.example.petmate.ui.auth.RegisterScreen
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.launch
+import com.example.petmate.util.LocationHelper
+import com.example.petmate.ui.components.GpsPromptDialog
+import android.Manifest
+import android.Manifest.permission.ACCESS_COARSE_LOCATION
+import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.Manifest.permission.POST_NOTIFICATIONS
+import android.content.Context.LOCATION_SERVICE
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build.VERSION_CODES.TIRAMISU
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
+import com.facebook.login.LoginManager
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
+import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Navigation screen enum for managing auth and main app flow.
- */
 enum class AppScreen {
-    Login,
-    Register,
-    ForgotPassword,
-    Main
+    Login, Register, ForgotPassword, Main
 }
 
 class MainActivity : ComponentActivity() {
@@ -60,12 +46,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PetMateTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
-                ) {
-                    PetMateApp()
-                }
+                PetMateApp()
             }
         }
     }
@@ -73,268 +54,252 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PetMateApp() {
-    val auth = remember { FirebaseAuth.getInstance() }
-
-    // Check if user is already logged in
     var currentScreen by remember {
-        mutableStateOf(
-            if (auth.currentUser != null) AppScreen.Main else AppScreen.Login
-        )
-    }
-
-    // No extra states needed for auth flows anymore
-
-    // Handle back navigation for auth screens
-    BackHandler(enabled = currentScreen != AppScreen.Main && currentScreen != AppScreen.Login) {
-        currentScreen = when (currentScreen) {
-            AppScreen.Register -> AppScreen.Login
-            AppScreen.ForgotPassword -> AppScreen.Login
-            else -> AppScreen.Login
-        }
+        mutableStateOf(if (FirebaseAuth.getInstance().currentUser != null) AppScreen.Main else AppScreen.Login)
     }
 
     when (currentScreen) {
-        AppScreen.Login -> {
-            LoginScreen(
-                onLoginSuccess = {
-                    currentScreen = AppScreen.Main
-                },
-                onNavigateToRegister = {
-                    currentScreen = AppScreen.Register
-                },
-                onNavigateToForgotPassword = {
-                    currentScreen = AppScreen.ForgotPassword
-                }
-            )
-        }
-
-        AppScreen.Register -> {
-            RegisterScreen(
-                onRegisterSuccess = {
-                    currentScreen = AppScreen.Login
-                },
-                onNavigateToLogin = {
-                    currentScreen = AppScreen.Login
-                }
-            )
-        }
-
-        AppScreen.ForgotPassword -> {
-            ForgotPasswordScreen(
-                onResetEmailSent = {
-                    currentScreen = AppScreen.Login
-                },
-                onNavigateBack = {
-                    currentScreen = AppScreen.Login
-                }
-            )
-        }
-
+        AppScreen.Login -> LoginScreen(
+            onLoginSuccess = { currentScreen = AppScreen.Main },
+            onNavigateToRegister = { currentScreen = AppScreen.Register },
+            onNavigateToForgotPassword = { currentScreen = AppScreen.ForgotPassword }
+        )
+        AppScreen.Register -> RegisterScreen(
+            onRegisterSuccess = { currentScreen = AppScreen.Login },
+            onNavigateToLogin = { currentScreen = AppScreen.Login }
+        )
+        AppScreen.ForgotPassword -> ForgotPasswordScreen(
+            onResetEmailSent = { currentScreen = AppScreen.Login },
+            onNavigateBack = { currentScreen = AppScreen.Login }
+        )
         AppScreen.Main -> {
-            MainContent(
-                onLogout = {
-                    auth.signOut()
-                    currentScreen = AppScreen.Login
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            MainContent(onLogout = { 
+                scope.launch {
+                    // 1. Sign out from Firebase
+                    try {
+                        val token = FirebaseMessaging.getInstance().token.await()
+                        NetworkClient.apiService.removeFcmToken(token)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    FirebaseAuth.getInstance().signOut()
+                    
+                    // 2. Disconnect WebSocket
+                    ChatWebSocketManager.disconnect()
+
+                    // 3. Modern Google Sign-out using Credential Manager
+                    try {
+                        val credentialManager = CredentialManager.create(context)
+                        credentialManager.clearCredentialState(ClearCredentialStateRequest())
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
+                    // 4. Also sign out of Facebook if applicable
+                    LoginManager.getInstance().logOut()
+
+                    // 5. Navigate to Login screen
+                    currentScreen = AppScreen.Login 
                 }
-            )
+            })
         }
     }
 }
 
 @Composable
-fun MainContent(onLogout: () -> Unit = {}) {
-    var userRole by remember { mutableStateOf<String?>(null) }
-    val firebaseUser = FirebaseAuth.getInstance().currentUser
-    var currentUser by remember { 
-        mutableStateOf<com.example.petmate.model.User?>(
-            if (firebaseUser != null) {
-                com.example.petmate.model.User(
-                    id = 0L,
-                    email = firebaseUser.email ?: "",
-                    fullName = firebaseUser.displayName ?: "Người dùng",
-                    role = "MEMBER",
-                    avatarUrl = firebaseUser.photoUrl?.toString()
-                )
-            } else null
-        ) 
-    }
-    var currentPet by remember { mutableStateOf<Pet?>(null) }
+fun MainContent(onLogout: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var refreshTrigger by remember { mutableStateOf(0) }
+    val firebaseUser = FirebaseAuth.getInstance().currentUser
 
-    LaunchedEffect(refreshTrigger) {
-        try {
-            val fbUser = FirebaseAuth.getInstance().currentUser
-            var email = fbUser?.email
-            var displayName = fbUser?.displayName
-            var avatarUrl = fbUser?.photoUrl?.toString()
-
-            // Nếu email hoặc avatar null (trường hợp Facebook login),
-            // lấy thông tin từ Facebook SDK
-            val fbAccessToken = com.facebook.AccessToken.getCurrentAccessToken()
-            if (fbAccessToken != null && !fbAccessToken.isExpired) {
-                // Avatar: dùng URL trực tiếp từ Facebook (luôn hoạt động)
-                if (avatarUrl.isNullOrEmpty()) {
-                    val fbUserId = fbAccessToken.userId
-                    avatarUrl = "https://graph.facebook.com/$fbUserId/picture?type=large&access_token=${fbAccessToken.token}"
-                }
-
-                // Email & Name: lấy từ Graph API
-                if (email.isNullOrEmpty() || displayName.isNullOrEmpty()) {
-                    try {
-                        val result = kotlinx.coroutines.suspendCancellableCoroutine<Pair<String?, String?>> { cont ->
-                            val request = com.facebook.GraphRequest.newMeRequest(fbAccessToken) { jsonObject, _ ->
-                                val e = jsonObject?.optString("email", null)
-                                val n = jsonObject?.optString("name", null)
-                                cont.resume(Pair(e, n), null)
-                            }
-                            val params = android.os.Bundle()
-                            params.putString("fields", "email,name")
-                            request.parameters = params
-                            request.executeAsync()
-                        }
-                        if (!result.first.isNullOrEmpty() && email.isNullOrEmpty()) email = result.first
-                        if (!result.second.isNullOrEmpty() && displayName.isNullOrEmpty()) displayName = result.second
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
+    var currentUser by remember {
+        mutableStateOf(
+            firebaseUser?.let {
+                com.example.petmate.model.User(
+                    id = 0L,
+                    providerId = it.uid,
+                    email = it.email ?: "",
+                    fullName = it.displayName ?: "Người dùng",
+                    role = "MEMBER",
+                    avatarUrl = it.photoUrl?.toString()
+                )
             }
-
-            val syncBody = mapOf(
-                "email" to email,
-                "fullName" to displayName,
-                "avatarUrl" to avatarUrl
-            )
-            val user = com.example.petmate.network.RetrofitClient.apiService.syncUser(syncBody)
-            if (user.status == "NOT ACTIVED" || user.status == "BANNED") {
-                android.widget.Toast.makeText(context, "Tài khoản của bạn đã bị khoá!", android.widget.Toast.LENGTH_LONG).show()
-                onLogout()
-                return@LaunchedEffect
-            }
-            userRole = user.role
-            currentUser = user
-        } catch (e: Exception) {
-            e.printStackTrace()
-            userRole = "MEMBER" // Fallback in case of error
-        }
+        )
     }
 
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
+    var userRole by remember { mutableStateOf<String?>(null) }
+    var totalUnreadCount by remember { mutableStateOf(0) }
+    var refreshTrigger by remember { mutableStateOf(0) }
+    var screenStack by remember { mutableStateOf(listOf<Screen>(Screen.Home)) }
+    var selectedTab by remember { mutableStateOf(0) }
+    var userLatitude by remember { mutableStateOf<Double?>(null) }
+    var userLongitude by remember { mutableStateOf<Double?>(null) }
+    var showGpsPrompt by remember { mutableStateOf(false) }
+    var blockedUserIds by remember { mutableStateOf<List<Long>>(emptyList()) }
+
+    val currentScreenState = screenStack.last()
+    
+    val alreadyHasPermission = remember {
+        ContextCompat.checkSelfPermission(context, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    var locationPermissionGranted by remember { mutableStateOf(alreadyHasPermission) }
+    var permissionChecked by remember { mutableStateOf(alreadyHasPermission) }
+
+    // Gộp chung xin quyền Vị trí và Thông báo (Android không cho phép mở 2 bảng xin quyền cùng lúc)
+    val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (permissions.containsKey(ACCESS_FINE_LOCATION) ||
+            permissions.containsKey(ACCESS_COARSE_LOCATION)) {
+            locationPermissionGranted = permissions[ACCESS_FINE_LOCATION] == true ||
+                                        permissions[ACCESS_COARSE_LOCATION] == true
+        }
+        permissionChecked = true
     }
 
-    var selectedTab by remember { mutableStateOf(0) }
-    var showProfileScreen by remember { mutableStateOf(false) }
-    var showPostPetScreen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val permissionsToRequest = mutableListOf<String>()
+        
+        // Xin quyền vị trí nếu chưa có
+        if (!alreadyHasPermission) {
+            permissionsToRequest.add(ACCESS_FINE_LOCATION)
+            permissionsToRequest.add(ACCESS_COARSE_LOCATION)
+        }
+        
+        // Xin quyền thông báo (Android 13+) nếu chưa có
+        if (android.os.Build.VERSION.SDK_INT >= TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(POST_NOTIFICATIONS)
+            }
+        }
 
-    if (showPostPetScreen) {
-        BackHandler {
-            showPostPetScreen = false
-            refreshTrigger++
+        // Mở 1 bảng xin quyền duy nhất cho tất cả
+        if (permissionsToRequest.isNotEmpty()) {
+            permissionChecked = false // Đợi người dùng trả lời xong mới check vị trí
+            permissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        } else {
+            permissionChecked = true
         }
-        com.example.petmate.ui.PostPetScreen(
-            onBackClick = { showPostPetScreen = false },
-            onPostSuccess = {
-                showPostPetScreen = false
-                refreshTrigger++
+    }
+
+    // Sync User (chạy ngay, không phụ thuộc quyền vị trí)
+    LaunchedEffect(firebaseUser) {
+        if (firebaseUser != null) {
+            try {
+                // Lấy email: ưu tiên firebaseUser.email, fallback vào providerData (Google)
+                val userEmail = firebaseUser.email
+                    ?: firebaseUser.providerData
+                        .firstOrNull { it.providerId == "google.com" }?.email
+                    ?: firebaseUser.providerData
+                        .firstOrNull { it.email != null }?.email
+
+                val syncBody = mapOf(
+                    "providerId" to firebaseUser.uid,
+                    "email" to userEmail,
+                    "fullName" to firebaseUser.displayName,
+                    "avatarUrl" to firebaseUser.photoUrl?.toString()
+                )
+                val user = NetworkClient.apiService.syncUser(syncBody)
+                currentUser = user
+                userRole = user.role
+
+                ChatWebSocketManager.connect(user.id)
+
+                // Get Blocked Users
+                blockedUserIds = NetworkClient.apiService.getBlockedUsers()
+
+                // Register FCM Token - Ép xóa token cũ (có thể bị cache sai project) rồi xin mới
+                try {
+                    FirebaseMessaging.getInstance().deleteToken().await()
+                    val token = FirebaseMessaging.getInstance().token.await()
+                    android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
+                    NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        )
-    } else if (showProfileScreen) {
-        BackHandler {
-            showProfileScreen = false
-            refreshTrigger++
         }
-        com.example.petmate.ui.ProfileScreen(
-            onBackClick = {
-                showProfileScreen = false
-                refreshTrigger++
-            }
-        )
-    } else if (currentPet != null) {
-        BackHandler {
-            currentPet = null
-        }
-        PetDetailsScreen(
-            pet = currentPet!!,
-            onBackClick = {
-                currentPet = null
-            }
-        )
-    } else {
-        Scaffold(
-            bottomBar = {
-                NavigationBar(
-                    containerColor = Color.White
-                ) {
-                    if (userRole == "RESCUE_ORG") {
-                        NavigationBarItem(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            icon = { Icon(Icons.Default.Favorite, contentDescription = "Kho thú cưng") },
-                            label = { Text("Kho thú cưng") }
-                        )
-                        NavigationBarItem(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Duyệt đơn") },
-                            label = { Text("Duyệt đơn") }
-                        )
-                    } else if (userRole == "ADMIN") {
-                        NavigationBarItem(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            icon = { Icon(Icons.Default.Favorite, contentDescription = "QL Người dùng") },
-                            label = { Text("Người dùng") }
-                        )
-                        NavigationBarItem(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Duyệt bài") },
-                            label = { Text("Duyệt bài") }
-                        )
-                    } else {
-                        // Default is MEMBER
-                        NavigationBarItem(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            icon = { Icon(Icons.Default.Favorite, contentDescription = "Nhận nuôi") },
-                            label = { Text("Nhận nuôi") }
-                        )
-                        NavigationBarItem(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Mua bán") },
-                            label = { Text("Mua bán") }
-                        )
+    }
+
+    // Location (chỉ chạy SAU KHI kết quả xin quyền đã trả về)
+    LaunchedEffect(permissionChecked, locationPermissionGranted) {
+        if (!permissionChecked) return@LaunchedEffect
+        if (firebaseUser == null) return@LaunchedEffect
+
+        if (locationPermissionGranted) {
+            try {
+                val location = LocationHelper.getCurrentLocation(context)
+                if (location != null) {
+                    userLatitude = location.latitude
+                    userLongitude = location.longitude
+                    coroutineScope.launch {
+                        try {
+                            NetworkClient.apiService.updateLocation(mapOf(
+                                "latitude" to location.latitude,
+                                "longitude" to location.longitude
+                            ))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                } else {
+                    val locationManager = context.getSystemService(LOCATION_SERVICE) as LocationManager
+                    val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                    val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                    if (!isGpsEnabled && !isNetworkEnabled) {
+                        showGpsPrompt = true
                     }
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        ) { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)) {
-                if (selectedTab == 0) {
-                    PetDiscoveryScreen(
-                        currentUser = currentUser,
-                        onPetClick = { pet ->
-                            currentPet = pet
-                        },
-                        onLogoutClick = onLogout,
-                        onProfileClick = { showProfileScreen = true },
-                        onNavigateToPostAd = { showPostPetScreen = true }
-                    )
-                } else {
-                    PetMarketScreen(
-                        onItemClick = { item ->
-                            currentPet = item
-                        },
-                        onNavigateToPostAd = { showPostPetScreen = true }
-                    )
-                }
+        } else {
+            Toast.makeText(context, "Chưa được cấp quyền Vị trí. Vui lòng bật trong Cài đặt ứng dụng!", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Unread count polling
+    LaunchedEffect(currentUser, refreshTrigger) {
+        currentUser?.let { user ->
+            while (true) {
+                try {
+                    totalUnreadCount = NetworkClient.apiService.getTotalUnreadCount(user.id)
+                } catch (e: Exception) {}
+                delay(10000.milliseconds) // Polling every 10s is enough for old devices
             }
         }
     }
+
+    if (showGpsPrompt) {
+        GpsPromptDialog(
+            onDismissRequest = { showGpsPrompt = false },
+            onEnableGpsClick = {
+                showGpsPrompt = false
+                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+        )
+    }
+
+    NavGraph(
+        currentScreen = currentScreenState,
+        currentUser = currentUser,
+        userRole = userRole,
+        userLatitude = userLatitude,
+        userLongitude = userLongitude,
+        blockedUserIds = blockedUserIds,
+        totalUnreadCount = totalUnreadCount,
+        selectedTab = selectedTab,
+        onTabSelected = { selectedTab = it },
+        coroutineScope = coroutineScope,
+        onNavigate = { screen -> screenStack = screenStack + screen },
+        onPop = { if (screenStack.size > 1) screenStack = screenStack.dropLast(1) },
+        onLogout = onLogout,
+        onRefresh = { refreshTrigger++ }
+    )
 }

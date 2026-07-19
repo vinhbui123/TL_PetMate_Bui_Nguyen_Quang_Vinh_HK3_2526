@@ -5,6 +5,20 @@ import com.example.petmate.R
 
 import com.google.gson.annotations.SerializedName
 
+data class PetUser(
+    val id: Long? = null,
+    val providerId: String? = null,
+    val fullName: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val address: String? = null,
+    val avatarUrl: String? = null,
+    val role: String? = null,
+    val status: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
 data class Pet(
     val id: Int,
     val name: String,
@@ -12,11 +26,14 @@ data class Pet(
     val age: String,
     val weight: String,
     @SerializedName("gender") val sex: String,
-    val distance: String,
     @SerializedName("description") val about: String,
     val imageUrl: String? = null,
     val price: String? = null,
     val status: String? = null,
     val category: String? = null,
+    val user: PetUser? = null,
+    val createdAt: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     @DrawableRes val imageRes: Int = R.drawable.beagle_dog
 )

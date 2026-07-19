@@ -1,7 +1,6 @@
 package com.example.petmate.ui.auth
 
 import android.util.Patterns
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -50,17 +49,8 @@ fun ForgotPasswordScreen(
 
     val auth = remember { FirebaseAuth.getInstance() }
 
-    // Floating animation for lock icon
-    val infiniteTransition = rememberInfiniteTransition(label = "float")
-    val offsetY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "offsetY"
-    )
+    // Floating animation removed
+    val offsetY = 0f
 
     fun validateEmail(): Boolean {
         emailError = when {

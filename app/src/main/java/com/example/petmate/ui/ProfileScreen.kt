@@ -17,8 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.petmate.model.User
-import com.example.petmate.network.RetrofitClient
+import com.example.petmate.network.NetworkClient
 import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,7 +31,6 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import coil.compose.AsyncImage
-import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
@@ -38,11 +38,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.text.style.TextAlign
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onLogoutClick: () -> Unit = {},
+    onViewFollowers: (Long, Int) -> Unit = { _, _ -> },
+    onManageAdoptions: () -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -54,19 +58,27 @@ fun ProfileScreen(
     var avatarUrl by remember { mutableStateOf<String?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isUploadingAvatar by remember { mutableStateOf(false) }
-    
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+    var followersCount by remember { mutableStateOf(0L) }
+    var followingCount by remember { mutableStateOf(0L) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         try {
-            val fetchedUser = RetrofitClient.apiService.getProfile()
+            val fetchedUser = NetworkClient.apiService.getProfile()
             user = fetchedUser
             fullName = fetchedUser.fullName
             phone = fetchedUser.phone ?: ""
             address = fetchedUser.address ?: ""
             avatarUrl = fetchedUser.avatarUrl
+            try {
+                val stats = NetworkClient.apiService.getUserFollowStats(fetchedUser.id)
+                followersCount = stats["followers"] ?: 0L
+                followingCount = stats["following"] ?: 0L
+            } catch (e: Exception) { e.printStackTrace() }
         } catch (e: Exception) {
             e.printStackTrace()
             snackbarHostState.showSnackbar("Lỗi tải thông tin")
@@ -91,7 +103,7 @@ fun ProfileScreen(
                     val requestFile = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
                     val body = MultipartBody.Part.createFormData("image", tempFile.name, requestFile)
                     
-                    val updatedUser = RetrofitClient.apiService.uploadAvatar(body)
+                    val updatedUser = NetworkClient.apiService.uploadAvatar(body)
                     avatarUrl = updatedUser.avatarUrl
                     user = updatedUser
                     Toast.makeText(context, "Tải ảnh lên thành công", Toast.LENGTH_SHORT).show()
@@ -173,6 +185,32 @@ fun ProfileScreen(
                     }
                 }
                 
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$followersCount\nNgười theo dõi",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = com.example.petmate.ui.theme.PrimaryPeach,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.clickable { user?.id?.let { onViewFollowers(it, 0) } }
+                    )
+                    Spacer(modifier = Modifier.width(32.dp))
+                    Text(
+                        text = "$followingCount\nĐang theo dõi",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = com.example.petmate.ui.theme.PrimaryPeach,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.clickable { user?.id?.let { onViewFollowers(it, 1) } }
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 OutlinedTextField(
@@ -219,7 +257,7 @@ fun ProfileScreen(
                                     phone = phone,
                                     address = address
                                 )
-                                RetrofitClient.apiService.updateProfile(updatedUser)
+                                NetworkClient.apiService.updateProfile(updatedUser)
                                 Toast.makeText(context, "Đã lưu thành công!", Toast.LENGTH_SHORT).show()
                                 onBackClick()
                             } catch (e: Exception) {
@@ -239,7 +277,74 @@ fun ProfileScreen(
                         Text("Lưu thay đổi")
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Nút Quản lý Đơn Xin Nhận Nuôi (Chỉ hiển thị cho người dùng bình thường, vì RESCUE_ORG đã có tab riêng)
+                if (user?.role != "RESCUE_ORG") {
+                    OutlinedButton(
+                        onClick = onManageAdoptions,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Quản lý Đơn xin Nhận nuôi", fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                
+                // Nút Xóa Tài Khoản
+                OutlinedButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
+                ) {
+                    Text("Xóa tài khoản", fontWeight = FontWeight.Bold)
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+    
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
+            title = { Text("Xác nhận xóa tài khoản") },
+            text = { Text("Bạn có chắc chắn muốn xóa tài khoản không? Hành động này sẽ khóa tài khoản và ẩn toàn bộ bài đăng của bạn. Không thể hoàn tác.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isDeleting = true
+                        coroutineScope.launch {
+                            try {
+                                NetworkClient.apiService.deleteAccount()
+                                Toast.makeText(context, "Đã xóa tài khoản thành công!", Toast.LENGTH_SHORT).show()
+                                showDeleteDialog = false
+                                onLogoutClick()
+                            } catch (e: Exception) {
+                                snackbarHostState.showSnackbar("Lỗi khi xóa tài khoản")
+                            } finally {
+                                isDeleting = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    enabled = !isDeleting
+                ) {
+                    if (isDeleting) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                    else Text("Xóa vĩnh viễn")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }, enabled = !isDeleting) {
+                    Text("Hủy", color = Color.Gray)
+                }
+            }
+        )
     }
 }

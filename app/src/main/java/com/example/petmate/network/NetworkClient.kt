@@ -9,9 +9,11 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
-object RetrofitClient {
+object NetworkClient {
     // Thay đổi IP này thành IP máy tính của bạn khi chạy trên thiết bị thật
-    private const val BASE_URL = "http://192.168.1.5:8080/api/"
+    const val SERVER_IP = "192.168.1.5"
+    const val SERVER_PORT = "8080"
+    const val BASE_URL = "http://$SERVER_IP:$SERVER_PORT/api/"
 
     private val authInterceptor = Interceptor { chain ->
         val requestBuilder = chain.request().newBuilder()

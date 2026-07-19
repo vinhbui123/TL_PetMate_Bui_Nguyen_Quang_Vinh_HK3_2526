@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -33,11 +32,19 @@ import com.example.petmate.ui.theme.*
 import androidx.compose.runtime.LaunchedEffect
 import coil.compose.AsyncImage
 import com.example.petmate.model.Pet
+import com.example.petmate.model.User
+import com.example.petmate.network.NetworkClient.apiService
+import com.example.petmate.util.LocationHelper
+import com.example.petmate.util.TimeHelper
 
-@Composable
+    @Composable
 fun PetMarketScreen(
     onItemClick: (Pet) -> Unit = {},
-    onNavigateToPostAd: () -> Unit = {}
+    onNavigateToPostAd: () -> Unit = {},
+    userLatitude: Double? = null,
+    userLongitude: Double? = null,
+    currentUser: User? = null,
+    blockedUserIds: List<Long> = emptyList()
 ) {
     var selectedCategory by remember { mutableStateOf("ALL") }
     var searchQuery by remember { mutableStateOf("") }
@@ -48,20 +55,30 @@ fun PetMarketScreen(
     LaunchedEffect(selectedCategory) {
         isLoading = true
         try {
-            val fetchedPets = com.example.petmate.network.RetrofitClient.apiService.getPets(
+            val fetchedPets = apiService.getPets(
                 category = if (selectedCategory == "ALL") null else selectedCategory
             )
-            // Lọc ra thú cưng có giá (Mua bán)
+            // Lọc ra thú cưng Có phí (Mua bán) và không thuộc người bị chặn
             apiPets = fetchedPets.filter {
-                !it.price.isNullOrEmpty() && !it.price.lowercase().contains("miễn phí") && it.price.trim() != "0" && it.price.trim() != "0 đ"
+                !it.price.isNullOrEmpty() && !it.price.lowercase().contains("miễn phí")
+                        && it.price.trim() != "0" && it.price.trim() != "0 đ" &&
+                (it.user?.id == null || !blockedUserIds.contains(it.user.id))
             }
         } catch (e: Exception) {
             e.printStackTrace()
             // Fallback to sample data for testing if server is down
             apiPets = listOf(
                 Pet(
-                    1, "Bé Beagle thuần chủng chân siêu cute", "Beagle", "1.5 years old", "20 pounds", "Male", "Q. Bình Thạnh, TP.HCM",
-                    "Bé siêu dễ thương.", null, "5.500.000 đ", R.drawable.beagle_dog
+                    id = 1,
+                    name = "Bé Beagle thuần chủng chân siêu cute",
+                    breed = "Beagle",
+                    age = "1.5 years old",
+                    weight = "20 pounds",
+                    sex = "Male",
+                    about = "Bé siêu dễ thương.",
+                    imageUrl = null,
+                    price = "5.500.000 đ",
+                    imageRes = R.drawable.beagle_dog
                 )
             )
         } finally {
@@ -70,18 +87,7 @@ fun PetMarketScreen(
     }
 
     Scaffold(
-        containerColor = BackgroundBeige,
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNavigateToPostAd,
-                containerColor = PrimaryPeach,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Đăng tin")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Đăng tin", fontWeight = FontWeight.Bold)
-            }
-        }
+        containerColor = BackgroundBeige
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -92,7 +98,7 @@ fun PetMarketScreen(
             MarketHeader()
             
             // Search Bar
-            SearchBar(
+            DiscoverySearchBar(
                 searchQuery = searchQuery,
                 onQueryChange = { searchQuery = it }
             )
@@ -103,18 +109,25 @@ fun PetMarketScreen(
                 onCategorySelected = { selectedCategory = it }
             )
             
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = PrimaryPeach)
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = PrimaryPeach)
+                    }
                 }
-            } else {
-                val displayedPets = apiPets.filter {
-                    searchQuery.isEmpty() || 
-                    it.name.contains(searchQuery, ignoreCase = true) || 
-                    it.breed.contains(searchQuery, ignoreCase = true)
+                else -> {
+                    val displayedPets = remember(apiPets, searchQuery) {
+                        apiPets.filter {
+                            searchQuery.isEmpty() ||
+                                    it.name.contains(searchQuery, ignoreCase = true) ||
+                                    it.breed.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+                    // Market Grid
+                    MarketGrid(items = displayedPets, onItemClick = onItemClick,
+                        currentUser = currentUser, userLatitude = userLatitude,
+                        userLongitude = userLongitude)
                 }
-                // Market Grid
-                MarketGrid(items = displayedPets, onItemClick = onItemClick)
             }
         }
     }
@@ -139,7 +152,13 @@ fun MarketHeader() {
 }
 
 @Composable
-fun MarketGrid(items: List<Pet>, onItemClick: (Pet) -> Unit) {
+fun MarketGrid(
+    items: List<Pet>,
+    onItemClick: (Pet) -> Unit,
+    currentUser: User? = null,
+    userLatitude: Double? = null,
+    userLongitude: Double? = null
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -147,14 +166,20 @@ fun MarketGrid(items: List<Pet>, onItemClick: (Pet) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(items) { item ->
-            MarketItemCard(item, onItemClick)
+        items(items, key = { it.id }) { item ->
+            MarketItemCard(item, onItemClick, currentUser, userLatitude, userLongitude)
         }
     }
 }
 
 @Composable
-fun MarketItemCard(item: Pet, onClick: (Pet) -> Unit) {
+fun MarketItemCard(
+    item: Pet,
+    onClick: (Pet) -> Unit,
+    currentUser: User? = null,
+    userLatitude: Double? = null,
+    userLongitude: Double? = null
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,8 +247,18 @@ fun MarketItemCard(item: Pet, onClick: (Pet) -> Unit) {
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
+                    val locationText = remember(item.latitude, item.longitude, userLatitude, userLongitude) {
+                        LocationHelper.getDistanceText(
+                            userLatitude, userLongitude,
+                            item.latitude,
+                            item.longitude
+                        )?.let { "Cách $it" } ?: "Chưa rõ khoảng cách"
+                    }
+                    val timeText = remember(item.createdAt) {
+                        TimeHelper.getRelativeTime(item.createdAt)
+                    }
                     Text(
-                        text = "Cách ${item.distance}",
+                        text = "$locationText • $timeText",
                         style = MaterialTheme.typography.labelSmall,
                         color = IconGray,
                         maxLines = 1,

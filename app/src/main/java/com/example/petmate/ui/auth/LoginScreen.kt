@@ -1,11 +1,8 @@
 package com.example.petmate.ui.auth
 
-import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.util.Patterns
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,12 +30,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.petmate.R
@@ -48,9 +45,12 @@ import com.facebook.FacebookCallback
 import com.facebook.FacebookException
 import com.facebook.login.LoginManager
 import com.facebook.login.LoginResult
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.firebase.auth.FacebookAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -62,12 +62,15 @@ import kotlinx.coroutines.tasks.await
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit
+    onNavigateToForgotPassword: () -> Unit,
+    onContinueAsGuest: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val webClientId = stringResource(R.string.default_web_client_id)
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -77,47 +80,54 @@ fun LoginScreen(
     var passwordError by remember { mutableStateOf<String?>(null) }
 
     val auth = remember { FirebaseAuth.getInstance() }
+    val credentialManager = remember { CredentialManager.create(context) }
 
-    // Logo animation
-    val infiniteTransition = rememberInfiniteTransition(label = "logo")
-    val logoScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "logoScale"
-    )
+    // Logo animation removed
+    val logoScale = 1f
 
-    // --- Google Sign-In ---
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                val idToken = account?.idToken
-                if (idToken != null) {
-                    isLoading = true
-                    val credential = GoogleAuthProvider.getCredential(idToken, null)
-                    coroutineScope.launch {
-                        try {
-                            auth.signInWithCredential(credential).await()
-                            onLoginSuccess()
-                        } catch (e: Exception) {
-                            snackbarHostState.showSnackbar("Đăng nhập Google thất bại: ${e.localizedMessage}")
-                        } finally {
-                            isLoading = false
-                        }
-                    }
+    // --- Google Sign-In with Credential Manager ---
+    suspend fun handleGoogleSignIn() {
+        isLoading = true
+        
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false) // Show all accounts for manual trigger
+            .setServerClientId(webClientId)
+            .setAutoSelectEnabled(false)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        try {
+            val result = credentialManager.getCredential(
+                request = request,
+                context = context
+            )
+            
+            val credential = result.credential
+            if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                try {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    val idToken = googleIdTokenCredential.idToken
+                    val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
+                    
+                    auth.signInWithCredential(firebaseCredential).await()
+                    onLoginSuccess()
+                } catch (e: GoogleIdTokenParsingException) {
+                    snackbarHostState.showSnackbar("Dữ liệu Google không hợp lệ")
                 }
-            } catch (e: ApiException) {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar("Đăng nhập Google thất bại: ${e.localizedMessage}")
-                }
+            } else {
+                snackbarHostState.showSnackbar("Loại xác thực không được hỗ trợ")
             }
+        } catch (e: GetCredentialException) {
+            if (e.type != "android.credentials.GetCredentialException.TYPE_USER_CANCELED") {
+                snackbarHostState.showSnackbar("Đăng nhập Google thất bại: ${e.message}")
+            }
+        } catch (e: Exception) {
+            snackbarHostState.showSnackbar("Đã có lỗi xảy ra: ${e.localizedMessage}")
+        } finally {
+            isLoading = false
         }
     }
 
@@ -279,7 +289,7 @@ fun LoginScreen(
                         Icon(
                             Icons.Default.Pets,
                             contentDescription = "PetMate Logo",
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier.fillMaxSize().padding(16.dp),
                             tint = Color.White
                         )
                     }
@@ -477,13 +487,9 @@ fun LoginScreen(
                     // Google Button
                     OutlinedButton(
                         onClick = {
-                            val webClientId = context.getString(R.string.default_web_client_id)
-                            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                .requestIdToken(webClientId)
-                                .requestEmail()
-                                .build()
-                            val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                            googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                            coroutineScope.launch {
+                                handleGoogleSignIn()
+                            }
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -511,11 +517,15 @@ fun LoginScreen(
                     // Facebook Button
                     OutlinedButton(
                         onClick = {
-                            LoginManager.getInstance().logIn(
-                                context as androidx.activity.ComponentActivity,
-                                callbackManager,
-                                listOf("email", "public_profile")
-                            )
+                            context.findActivity()?.let { activity ->
+                                LoginManager.getInstance().logIn(
+                                    activity,
+                                    callbackManager,
+                                    listOf("email", "public_profile")
+                                )
+                            } ?: coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Không thể khởi động đăng nhập Facebook")
+                            }
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -565,8 +575,36 @@ fun LoginScreen(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Guest Login
+                Text(
+                    text = "Khám phá ngay (Không cần đăng nhập)",
+                    color = TextGray,
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onContinueAsGuest() }
+                        .padding(8.dp)
+                )
+
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
+}
+
+/**
+ * Helper function to find the Activity from a Context.
+ */
+private fun Context.findActivity(): androidx.activity.ComponentActivity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is androidx.activity.ComponentActivity) return context
+        context = context.baseContext
+    }
+    return null
 }

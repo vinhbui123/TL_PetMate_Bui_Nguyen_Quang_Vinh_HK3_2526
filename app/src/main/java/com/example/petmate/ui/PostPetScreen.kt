@@ -24,8 +24,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.petmate.model.PetRequestDto
-import com.example.petmate.network.RetrofitClient
+import com.example.petmate.model.PetRequest
+import com.example.petmate.network.NetworkClient
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -47,7 +47,6 @@ fun PostPetScreen(
     var age by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("Đực") }
-    var distance by remember { mutableStateOf("1.0km") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("DOGS") }
@@ -115,8 +114,20 @@ fun PostPetScreen(
             
             // Category Selection
             Text("Danh mục", fontWeight = FontWeight.Bold)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("DOGS" to "Chó", "CATS" to "Mèo", "PARROT" to "Chim", "RABBIT" to "Khác").forEach { (code, label) ->
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf(
+                    "DOGS" to "🐶 Chó",
+                    "CATS" to "🐱 Mèo",
+                    "BIRDS" to "🦜 Chim cảnh",
+                    "FISH" to "🐟 Cá cảnh",
+                    "HAMSTERS" to "🐹 Hamster",
+                    "RABBITS" to "🐰 Thỏ",
+                    "POULTRY" to "🐔 Gia cầm",
+                    "OTHER" to "🦎 Khác"
+                ).forEach { (code, label) ->
                     FilterChip(
                         selected = category == code,
                         onClick = { category = code },
@@ -148,13 +159,13 @@ fun PostPetScreen(
                     isLoading = true
                     coroutineScope.launch {
                         try {
-                            val dto = PetRequestDto(
+                            val dto = PetRequest(
                                 name = name, breed = breed, age = age, weight = weight,
-                                gender = gender, distance = distance, description = description,
+                                gender = gender, description = description,
                                 price = if (price.isBlank()) "Miễn phí" else price,
                                 category = category, status = "AVAILABLE"
                             )
-                            val createdPet = RetrofitClient.apiService.createPet(dto)
+                            val createdPet = NetworkClient.apiService.createPet(dto)
                             
                             // Upload image if provided
                             if (imageUri != null) {
@@ -167,10 +178,10 @@ fun PostPetScreen(
                                 
                                 val requestFile = tempFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
                                 val body = MultipartBody.Part.createFormData("image", tempFile.name, requestFile)
-                                RetrofitClient.apiService.uploadPetImage(createdPet.id, body)
+                                NetworkClient.apiService.uploadPetImage(createdPet.id, body)
                             }
                             
-                            Toast.makeText(context, "Đăng tin thành công!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Đăng tin thành công! Tin của bạn đang chờ Admin duyệt.", Toast.LENGTH_LONG).show()
                             onPostSuccess()
                         } catch (e: Exception) {
                             e.printStackTrace()
