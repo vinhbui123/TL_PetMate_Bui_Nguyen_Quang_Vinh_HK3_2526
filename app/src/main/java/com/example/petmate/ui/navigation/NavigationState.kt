@@ -23,4 +23,7 @@ sealed interface Screen {
     data object AdminBroadcast : Screen
     data object Notification : Screen
     data object AdminUserManagement : Screen
+    data class EditPet(val pet: Pet) : Screen
+    data object AdminReportManagement : Screen
+    data object SavedPets : Screen
 }

@@ -9,6 +9,9 @@ import com.example.petmate.model.Message
 import com.example.petmate.model.Pet
 import com.example.petmate.model.PetRequest
 import com.example.petmate.model.ReportRequest
+import com.example.petmate.model.RatingRequest
+import com.example.petmate.model.RatingResponse
+import com.example.petmate.model.SellerRatingSummary
 import retrofit2.http.GET
 import retrofit2.http.Query
 import retrofit2.http.Path
@@ -26,6 +29,9 @@ import retrofit2.Response
 interface ApiService {
     @GET("pets")
     suspend fun getPets(@Query("category") category: String? = null): List<Pet>
+    
+    @GET("pets/{id}")
+    suspend fun getPetById(@Path("id") id: Int): Pet
     
     @POST("user/sync")
     suspend fun syncUser(@Body body: Map<String, String?>): User
@@ -65,7 +71,7 @@ interface ApiService {
     suspend fun getAllPetsAdmin(): List<Pet>
     
     @PUT("pets/{id}/status")
-    suspend fun updatePetStatus(@Path("id") id: Int, @Query("status") status: String): Pet
+    suspend fun updatePetStatus(@Path("id") id: Int, @Query("status") status: String, @Body empty: Any = Any()): Pet
     
     @DELETE("pets/{id}")
     suspend fun deletePet(@Path("id") id: Int)
@@ -81,7 +87,7 @@ interface ApiService {
     suspend fun deleteAccount(): Response<Unit>
 
     @POST("user/blocks/{blockedId}")
-    suspend fun blockUser(@Path("blockedId") blockedId: Long): Response<Unit>
+    suspend fun blockUser(@Path("blockedId") blockedId: Long, @Body empty: Any = Any()): Response<Unit>
 
     @DELETE("user/blocks/{blockedId}")
     suspend fun unblockUser(@Path("blockedId") blockedId: Long): Response<Unit>
@@ -93,7 +99,7 @@ interface ApiService {
     suspend fun getBlockedUserDetails(): List<User>
 
     @POST("user/follows/{followedId}")
-    suspend fun followUser(@Path("followedId") followedId: Long): Response<Unit>
+    suspend fun followUser(@Path("followedId") followedId: Long, @Body empty: Any = Any()): Response<Unit>
 
     @DELETE("user/follows/{followedId}")
     suspend fun unfollowUser(@Path("followedId") followedId: Long): Response<Unit>
@@ -113,6 +119,16 @@ interface ApiService {
     @POST("reports")
     suspend fun submitReport(@Body request: ReportRequest): Response<Unit>
 
+    @GET("reports")
+    suspend fun getAllReports(): List<com.example.petmate.model.ReportResponse>
+
+    @PUT("reports/{id}/status")
+    suspend fun updateReportStatus(
+        @Path("id") id: Long,
+        @Query("status") status: String,
+        @Body empty: Any = Any()
+    ): com.example.petmate.model.ReportResponse
+
     @GET("chat/rooms")
     suspend fun getChatRooms(@Query("userId") userId: Long): List<ChatRoom>
     
@@ -123,7 +139,7 @@ interface ApiService {
     suspend fun getOrCreateRoom(@Body payload: Map<String, Long>): ChatRoom
 
     @PUT("chat/rooms/{roomId}/read")
-    suspend fun markRoomAsRead(@Path("roomId") roomId: Long, @Query("userId") userId: Long)
+    suspend fun markRoomAsRead(@Path("roomId") roomId: Long, @Query("userId") userId: Long, @Body empty: Any = Any())
 
     @GET("chat/unread-count")
     suspend fun getTotalUnreadCount(@Query("userId") userId: Long): Int
@@ -143,11 +159,29 @@ interface ApiService {
     @PUT("adoptions/{id}/status")
     suspend fun updateAdoptionStatus(
         @Path("id") id: Long,
-        @Query("status") status: String
+        @Query("status") status: String,
+        @Body empty: Any = Any()
     ): AdoptionResponse
 
     @DELETE("adoptions/{id}")
     suspend fun cancelAdoptionApplication(@Path("id") id: Long): retrofit2.Response<Unit>
+
+    @GET("pets/saved")
+    suspend fun getSavedPets(): List<Pet>
+
+    // Likes
+    @GET("pets/{petId}/like-status")
+    suspend fun getLikeStatus(@Path("petId") petId: Long): com.example.petmate.model.LikeStatusResponse
+
+    @POST("pets/{petId}/like")
+    suspend fun toggleLike(@Path("petId") petId: Long, @Body empty: Any = Any()): com.example.petmate.model.LikeStatusResponse
+
+    // Interactions
+    @GET("pets/{petId}/save-status")
+    suspend fun getSaveStatus(@Path("petId") petId: Long): com.example.petmate.model.SaveStatusResponse
+
+    @POST("pets/{petId}/save")
+    suspend fun toggleSave(@Path("petId") petId: Long, @Body empty: Any = Any()): com.example.petmate.model.SaveStatusResponse
 
     // Admin Endpoints
     @GET("admin/users/pending-rescue")
@@ -156,7 +190,8 @@ interface ApiService {
     @PUT("admin/users/{id}/approve-rescue")
     suspend fun approveRescueOrg(
         @Path("id") id: Long,
-        @Query("approve") approve: Boolean
+        @Query("approve") approve: Boolean,
+        @Body empty: Any = Any()
     ): User
 
     @POST("admin/broadcast")
@@ -168,12 +203,23 @@ interface ApiService {
     @PUT("admin/users/{id}/status")
     suspend fun updateUserStatusAdmin(
         @Path("id") id: Long,
-        @Query("status") status: String
+        @Query("status") status: String,
+        @Body empty: Any = Any()
     ): User
 
     @PUT("admin/users/{id}/role")
     suspend fun updateUserRoleAdmin(
         @Path("id") id: Long,
-        @Query("role") role: String
+        @Query("role") role: String,
+        @Body empty: Any = Any()
     ): User
+
+    @GET("user/{userId}/ratings/summary")
+    suspend fun getSellerRatingSummary(@Path("userId") userId: Long): SellerRatingSummary
+
+    @POST("user/{userId}/rate")
+    suspend fun rateUser(@Path("userId") userId: Long, @Body request: RatingRequest): RatingResponse
+
+    @DELETE("user/ratings/{ratingId}")
+    suspend fun deleteRating(@Path("ratingId") ratingId: Long): Response<Unit>
 }

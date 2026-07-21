@@ -8,23 +8,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,8 +67,17 @@ fun PetDiscoveryScreen(
     var apiPets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(selectedCategory) {
-        isLoading = true
+    // Filter states
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var filterMaxDistance by remember { mutableFloatStateOf(100f) }
+    var filterArea by remember { mutableStateOf("") }
+
+    var refreshTrigger by remember { mutableStateOf(0) }
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedCategory, refreshTrigger) {
+        if (refreshTrigger > 0) isRefreshing = true
+        if (refreshTrigger == 0) isLoading = true
         try {
             val fetchedPets = apiService.getPets(
                 category = if (selectedCategory == "ALL") null else selectedCategory
@@ -93,292 +99,101 @@ fun PetDiscoveryScreen(
             )
         } finally {
             isLoading = false
+            isRefreshing = false
         }
     }
 
 
     Scaffold(
         containerColor = BackgroundBeige,
-        topBar = {
-            Header(
-                currentUser = currentUser,
-                onLogoutClick = onLogoutClick,
-                onProfileClick = onProfileClick,
-                onAdminDashboardClick = onAdminDashboardClick,
-                onBlockedUsersClick = onBlockedUsersClick,
-                onPostHistoryClick = onPostHistoryClick,
-                onNotificationsClick = onNotificationsClick
-            )
-        }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+        @OptIn(ExperimentalMaterial3Api::class)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshTrigger++ },
+            modifier = Modifier.fillMaxSize()
         ) {
-            DiscoverySearchBar(
-                searchQuery = searchQuery,
-                onQueryChange = { searchQuery = it }
-            )
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                com.example.petmate.ui.components.AppHeader(
+                    currentUser = currentUser,
+                    onLogoutClick = onLogoutClick,
+                    onProfileClick = onProfileClick,
+                    onAdminDashboardClick = onAdminDashboardClick,
+                    onBlockedUsersClick = onBlockedUsersClick,
+                    onPostHistoryClick = onPostHistoryClick,
+                    onNotificationsClick = onNotificationsClick
+                )
+                
+                DiscoverySearchBar(
+                    searchQuery = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onFilterClick = { showFilterSheet = true }
+                )
             CategoryList(
                 selectedCategory = selectedCategory,
                 onCategorySelected = { selectedCategory = it }
             )
-            when {
-                isLoading -> {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = PrimaryPeach)
                     }
                 }
                 else -> {
-                    val displayedPets = remember(apiPets, searchQuery) {
+                    val displayedPets = remember(apiPets, searchQuery, filterMaxDistance, filterArea, userLatitude, userLongitude) {
                         apiPets.filter {
-                            searchQuery.isEmpty() ||
+                            val matchesSearch = searchQuery.isEmpty() ||
                                     it.name.contains(searchQuery, ignoreCase = true) ||
                                     it.breed.contains(searchQuery, ignoreCase = true)
+                            
+                            var matchesDistance = true
+                            if (filterMaxDistance < 100f && userLatitude != null && userLongitude != null) {
+                                val distance = LocationHelper.calculateDistance(
+                                    userLatitude, userLongitude,
+                                    it.latitude, it.longitude
+                                )
+                                if (distance != null) {
+                                    matchesDistance = distance <= filterMaxDistance
+                                } else {
+                                    matchesDistance = false
+                                }
+                            }
+
+                            val address = it.user?.address ?: ""
+                            val matchesArea = filterArea.isEmpty() || address.contains(filterArea, ignoreCase = true)
+
+                            matchesSearch && matchesDistance && matchesArea
                         }
                     }
                     PetList(displayedPets, onPetClick, currentUser, userLatitude, userLongitude)
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun Header(
-    currentUser: User? = null,
-    onLogoutClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
-    onAdminDashboardClick: () -> Unit = {},
-    onBlockedUsersClick: () -> Unit = {},
-    onPostHistoryClick: () -> Unit = {},
-    onNotificationsClick: () -> Unit = {}
-) {
-    var expanded by remember { mutableStateOf(false) }
-    
-    val context = LocalContext.current
-    var unreadCount by remember { mutableStateOf(0) }
-
-    // Polling cập nhật số thông báo chưa đọc mỗi 3 giây
-    LaunchedEffect(currentUser) {
-        if (currentUser != null) {
-            val storage = NotificationStorage(context)
-            while (true) {
-                unreadCount = storage.getUnreadCount()
-                kotlinx.coroutines.delay(3000)
             }
         }
     }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = if (currentUser == null) {
-                Modifier.clickable { onLogoutClick() }.weight(1f)
-            } else {
-                Modifier.weight(1f)
-            }
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray)
-            ) {
-                if (!currentUser?.avatarUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = currentUser.avatarUrl,
-                        contentDescription = "Profile",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(R.drawable.app_logo),
-                        contentDescription = "Profile",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.FillBounds
-                    )
+        if (showFilterSheet) {
+            DiscoveryFilterBottomSheet(
+                currentMaxDistance = filterMaxDistance,
+                currentArea = filterArea,
+                onDismissRequest = { showFilterSheet = false },
+                onApplyFilter = { dist, area ->
+                    filterMaxDistance = dist
+                    filterArea = area
+                    showFilterSheet = false
                 }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = currentUser?.fullName ?: "Khách vãng lai",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextGray,
-                    maxLines = 1
-                )
-                if (currentUser == null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = null,
-                            tint = PrimaryPeach,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Đăng nhập ngay",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PrimaryPeach,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = PrimaryPeach,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = currentUser.address ?: "Chưa cập nhật địa chỉ",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = IconGray,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-        if (currentUser != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.clickable { onNotificationsClick() }.padding(end = 16.dp),
-                    contentAlignment = Alignment.TopEnd
-                ) {
-                    Icon(
-                        Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = TextGray,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    if (unreadCount > 0) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Red,
-                            modifier = Modifier.size(16.dp).offset(x = 4.dp, y = (-4).dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = if (unreadCount > 9) "9+" else unreadCount.toString(),
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-                Box {
-                    Icon(
-                        Icons.Default.Menu,
-                        contentDescription = "Menu",
-                        tint = TextGray,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clickable { expanded = true }
-                    )
-                MaterialTheme(colorScheme = MaterialTheme.colorScheme.copy(surface = Color.White)) {
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                        modifier = Modifier.background(Color.White).width(180.dp)
-                    ) {
-                        DropdownMenuItem(
-                            leadingIcon = { 
-                                Icon(
-                                    Icons.Default.Person, 
-                                    contentDescription = null, 
-                                    tint = TextGray,
-                                    modifier = Modifier.size(20.dp)
-                                ) 
-                            },
-                            text = { Text("Hồ sơ cá nhân", color = TextGray, fontWeight = FontWeight.Medium) },
-                            onClick = {
-                                expanded = false
-                                onProfileClick()
-                            }
-                        )
-                        DropdownMenuItem(
-                            leadingIcon = { 
-                                Icon(
-                                    Icons.Default.Menu, // Or use History icon if available
-                                    contentDescription = null, 
-                                    tint = TextGray,
-                                    modifier = Modifier.size(20.dp)
-                                ) 
-                            },
-                            text = { Text("Lịch sử đăng tin", color = TextGray, fontWeight = FontWeight.Medium) },
-                            onClick = {
-                                expanded = false
-                                onPostHistoryClick()
-                            }
-                        )
-                        DropdownMenuItem(
-                            leadingIcon = { 
-                                Icon(
-                                    Icons.Default.Block,
-                                    contentDescription = null, 
-                                    tint = TextGray,
-                                    modifier = Modifier.size(20.dp)
-                                ) 
-                            },
-                            text = { Text("Tài khoản bị chặn", color = TextGray, fontWeight = FontWeight.Medium) },
-                            onClick = {
-                                expanded = false
-                                onBlockedUsersClick()
-                            }
-                        )
-                        if (currentUser.role == "ADMIN") {
-                            DropdownMenuItem(
-                                leadingIcon = { 
-                                    Icon(
-                                        Icons.Default.Dashboard, 
-                                        contentDescription = null, 
-                                        tint = TextGray,
-                                        modifier = Modifier.size(20.dp)
-                                    ) 
-                                },
-                                text = { Text("Quản trị hệ thống", color = TextGray, fontWeight = FontWeight.Medium) },
-                                onClick = {
-                                    expanded = false
-                                    onAdminDashboardClick()
-                                }
-                            )
-                        }
-                        HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
-                        DropdownMenuItem(
-                            text = { Text("Đăng xuất", color = Color.Red) },
-                            onClick = {
-                                expanded = false
-                                onLogoutClick()
-                            },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.Red) }
-                        )
-                    }
-                }
-            }
+            )
         }
     }
-}
 }
 
 @Composable
 fun DiscoverySearchBar(
     searchQuery: String = "",
-    onQueryChange: (String) -> Unit = {}
+    onQueryChange: (String) -> Unit = {},
+    onFilterClick: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
@@ -422,7 +237,9 @@ fun DiscoverySearchBar(
                 )
             }
             Surface(
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier
+                    .size(36.dp)
+                    .clickable { onFilterClick() },
                 shape = RoundedCornerShape(10.dp),
                 color = PrimaryPeach
             ) {
@@ -511,7 +328,11 @@ fun PetList(
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(pets, key = { it.id }) { pet ->
+        items(
+            items = pets, 
+            key = { it.id },
+            contentType = { "pet_card" } // Helps LazyColumn reuse compositions efficiently
+        ) { pet ->
             PetCard(pet, onPetClick, currentUser, userLatitude, userLongitude)
         }
     }
@@ -525,32 +346,36 @@ fun PetCard(
     userLatitude: Double? = null,
     userLongitude: Double? = null
 ) {
-    Surface(
+    // Surface with elevation can be heavy on old GPUs. 
+    // Using a simple Box with background and clip is lighter.
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp) // Kéo dài khung Surface
-            .padding(vertical = 4.dp)
-            .clickable { onPetClick(pet) },
-        shape = RoundedCornerShape(24.dp),
-        color = CardWhite,
-        shadowElevation = 2.dp
+            .height(160.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(CardWhite)
+            .clickable { onPetClick(pet) }
+            .padding(16.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
+            // Image Container
+            Box(
                 modifier = Modifier
                     .width(110.dp)
-                    .fillMaxHeight(),
-                shape = RoundedCornerShape(20.dp),
-                color = Color.LightGray
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFF0F0F0)) // Placeholder background
             ) {
                 if (!pet.imageUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = pet.imageUrl,
+                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                            .data(pet.imageUrl)
+                            .crossfade(true)
+                            .size(300) // Force low resolution decode for old devices
+                            .build(),
                         contentDescription = pet.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -573,7 +398,8 @@ fun PetCard(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -589,12 +415,16 @@ fun PetCard(
                             color = IconGray
                         )
                     }
-                    Icon(
-                        Icons.Default.Favorite,
-                        contentDescription = "Favorite",
-                        tint = HeartRed,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (pet.likeCount > 0) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = null, 
+                            tint = if (pet.likeCount > 0) Color.Red else IconGray, 
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = pet.likeCount.toString(), style = MaterialTheme.typography.labelSmall, color = TextGray, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Column {
@@ -611,6 +441,8 @@ fun PetCard(
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
+                        
+                        // Already optimized calculations
                         val locationText = remember(pet.latitude, pet.longitude, userLatitude, userLongitude) {
                             LocationHelper.getDistanceText(
                                 userLatitude, userLongitude,
@@ -621,6 +453,7 @@ fun PetCard(
                         val timeText = remember(pet.createdAt) {
                             TimeHelper.getRelativeTime(pet.createdAt)
                         }
+
                         Text(
                             text = "$locationText • $timeText",
                             style = MaterialTheme.typography.bodySmall,
@@ -629,6 +462,128 @@ fun PetCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DiscoveryFilterBottomSheet(
+    currentMaxDistance: Float,
+    currentArea: String,
+    onDismissRequest: () -> Unit,
+    onApplyFilter: (maxDistance: Float, area: String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var maxDistance by remember { mutableFloatStateOf(currentMaxDistance) }
+    var area by remember { mutableStateOf(currentArea) }
+
+    // Optimization: Use derivedStateOf to prevent excessive UI re-calculation during slider drags
+    val distanceLabel by remember {
+        derivedStateOf {
+            if (maxDistance >= 100f) "Toàn quốc" else "${maxDistance.toInt()} km"
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = CardWhite,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = PrimaryPeach) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 40.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Bộ lọc nâng cao",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextGray
+                )
+                TextButton(onClick = {
+                    maxDistance = 100f
+                    area = ""
+                }) {
+                    Text("Đặt lại", color = AccentOrange, fontWeight = FontWeight.Bold)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Distance Filter
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Khoảng cách tối đa", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextGray)
+                    Text(
+                        distanceLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = AccentOrange
+                    )
+                }
+                Slider(
+                    value = maxDistance,
+                    onValueChange = { maxDistance = it },
+                    valueRange = 1f..100f,
+                    steps = 98,
+                    colors = SliderDefaults.colors(
+                        thumbColor = AccentOrange,
+                        activeTrackColor = AccentOrange,
+                        inactiveTrackColor = SoftPeach
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                "Khu vực",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = TextGray,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            OutlinedTextField(
+                value = area,
+                onValueChange = { area = it },
+                placeholder = { Text("VD: Hà Nội, TP.HCM", color = IconGray) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentOrange,
+                    unfocusedBorderColor = InputBorder,
+                    focusedContainerColor = InputBackground,
+                    unfocusedContainerColor = InputBackground
+                ),
+                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = AccentOrange) }
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Button(
+                onClick = { onApplyFilter(maxDistance, area) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentOrange),
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Text("Áp dụng bộ lọc", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
             }
         }
     }

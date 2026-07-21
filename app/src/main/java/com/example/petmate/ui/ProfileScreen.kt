@@ -39,6 +39,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +47,8 @@ fun ProfileScreen(
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit = {},
     onViewFollowers: (Long, Int) -> Unit = { _, _ -> },
-    onManageAdoptions: () -> Unit = {}
+    onManageAdoptions: () -> Unit = {},
+    onViewSavedPets: () -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -279,22 +281,19 @@ fun ProfileScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Nút Quản lý Đơn Xin Nhận Nuôi (Chỉ hiển thị cho người dùng bình thường, vì RESCUE_ORG đã có tab riêng)
-                if (user?.role != "RESCUE_ORG") {
-                    OutlinedButton(
-                        onClick = onManageAdoptions,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Quản lý Đơn xin Nhận nuôi", fontWeight = FontWeight.Bold)
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onViewSavedPets,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.AccentOrange)
+                ) {
+                    Text("Tin đã lưu", fontWeight = FontWeight.Bold, color = Color.White)
                 }
                 
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Nút Quản lý Đơn Xin Nhận Nuôi đã được chuyển ra thanh điều hướng bên dưới
                 // Nút Xóa Tài Khoản
                 OutlinedButton(
                     onClick = { showDeleteDialog = true },
@@ -312,39 +311,87 @@ fun ProfileScreen(
     }
     
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
-            title = { Text("Xác nhận xóa tài khoản") },
-            text = { Text("Bạn có chắc chắn muốn xóa tài khoản không? Hành động này sẽ khóa tài khoản và ẩn toàn bộ bài đăng của bạn. Không thể hoàn tác.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        isDeleting = true
-                        coroutineScope.launch {
-                            try {
-                                NetworkClient.apiService.deleteAccount()
-                                Toast.makeText(context, "Đã xóa tài khoản thành công!", Toast.LENGTH_SHORT).show()
-                                showDeleteDialog = false
-                                onLogoutClick()
-                            } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("Lỗi khi xóa tài khoản")
-                            } finally {
-                                isDeleting = false
+        Dialog(onDismissRequest = { if (!isDeleting) showDeleteDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = com.example.petmate.ui.theme.CardWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Xác nhận xóa tài khoản",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = com.example.petmate.ui.theme.TextGray,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Text(
+                        text = "Bạn có chắc chắn muốn xóa tài khoản không? Hành động này sẽ khóa tài khoản và ẩn toàn bộ bài đăng của bạn. Không thể hoàn tác.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = com.example.petmate.ui.theme.TextGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showDeleteDialog = false },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, com.example.petmate.ui.theme.InputBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = com.example.petmate.ui.theme.TextGray),
+                            enabled = !isDeleting
+                        ) {
+                            Text("Hủy", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                isDeleting = true
+                                coroutineScope.launch {
+                                    try {
+                                        NetworkClient.apiService.deleteAccount()
+                                        Toast.makeText(context, "Đã xóa tài khoản thành công!", Toast.LENGTH_SHORT).show()
+                                        showDeleteDialog = false
+                                        onLogoutClick()
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Lỗi khi xóa tài khoản")
+                                    } finally {
+                                        isDeleting = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.ErrorRed),
+                            shape = RoundedCornerShape(14.dp),
+                            enabled = !isDeleting
+                        ) {
+                            if (isDeleting) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text("Xóa", fontWeight = FontWeight.ExtraBold, color = Color.White)
                             }
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    enabled = !isDeleting
-                ) {
-                    if (isDeleting) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
-                    else Text("Xóa vĩnh viễn")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }, enabled = !isDeleting) {
-                    Text("Hủy", color = Color.Gray)
+                    }
                 }
             }
-        )
+        }
     }
 }

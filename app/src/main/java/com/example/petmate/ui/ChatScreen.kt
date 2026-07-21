@@ -1,6 +1,7 @@
 package com.example.petmate.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.petmate.model.ChatMessagePayload
@@ -32,10 +34,22 @@ fun ChatScreen(
     otherUserId: Long, // to send messages to
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
     var textState by remember { mutableStateOf(TextFieldValue("")) }
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    var showReportDialogForMessage by remember { mutableStateOf<Long?>(null) }
+
+    if (showReportDialogForMessage != null) {
+        com.example.petmate.ui.components.ReportDialog(
+            reportedMessageId = showReportDialogForMessage,
+            onDismissRequest = { showReportDialogForMessage = null },
+            onSuccess = {
+                android.widget.Toast.makeText(context, "Cảm ơn bạn đã báo cáo tin nhắn.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        )
+    }
 
     // 1. Fetch initial messages
     LaunchedEffect(roomId) {
@@ -58,7 +72,7 @@ fun ChatScreen(
                 // Loại bỏ tin nhắn tạm (nếu có) và thêm tin nhắn thật từ server
                 messages = messages.filterNot { it.status == "SENDING" && it.content == newMessage.content } + newMessage
                 coroutineScope.launch {
-                    kotlinx.coroutines.delay(50)
+                    kotlinx.coroutines.delay(50.milliseconds)
                     listState.scrollToItem(messages.size - 1)
                 }
             }
@@ -96,7 +110,11 @@ fun ChatScreen(
             ) {
                 items(messages, key = { it.id }) { msg ->
                     val isMine = msg.senderId == currentUserId
-                    MessageBubble(message = msg, isMine = isMine)
+                    MessageBubble(
+                        message = msg, 
+                        isMine = isMine,
+                        onReportClick = { if (!isMine) showReportDialogForMessage = msg.id }
+                    )
                 }
             }
 
@@ -164,26 +182,45 @@ fun ChatScreen(
 }
 
 @Composable
-fun MessageBubble(message: Message, isMine: Boolean) {
+fun MessageBubble(message: Message, isMine: Boolean, onReportClick: () -> Unit = {}) {
+    var expanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start
     ) {
-        Surface(
-            color = if (isMine) com.example.petmate.ui.theme.PrimaryPeach else Color.White,
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isMine) 16.dp else 4.dp,
-                bottomEnd = if (isMine) 4.dp else 16.dp
-            ),
-            shadowElevation = 1.dp
-        ) {
-            Text(
-                text = message.content,
-                modifier = Modifier.padding(12.dp),
-                color = if (isMine) Color.White else Color.Black
-            )
+        Box {
+            Surface(
+                color = if (isMine) com.example.petmate.ui.theme.PrimaryPeach else Color.White,
+                shape = RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = if (isMine) 16.dp else 4.dp,
+                    bottomEnd = if (isMine) 4.dp else 16.dp
+                ),
+                shadowElevation = 1.dp,
+                modifier = Modifier.clickable { if (!isMine) expanded = true }
+            ) {
+                Text(
+                    text = message.content,
+                    modifier = Modifier.padding(12.dp),
+                    color = if (isMine) Color.White else Color.Black
+                )
+            }
+            if (!isMine) {
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Báo cáo tin nhắn", color = Color.Red) },
+                        onClick = { 
+                            expanded = false
+                            onReportClick()
+                        }
+                    )
+                }
+            }
         }
     }
 }

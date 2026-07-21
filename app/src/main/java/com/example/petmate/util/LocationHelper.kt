@@ -110,18 +110,24 @@ object LocationHelper {
      * Tính khoảng cách giữa 2 điểm (người dùng và thú cưng) và trả về text mô tả.
      */
     fun getDistanceText(userLat: Double?, userLng: Double?, petLat: Double?, petLng: Double?): String? {
-        if (userLat == null || userLng == null || petLat == null || petLng == null) return null
+        val distanceInKm = calculateDistance(userLat, userLng, petLat, petLng) ?: return null
         
+        return if (distanceInKm < 1.0) {
+            "${(distanceInKm * 1000).toInt()}m"
+        } else {
+            String.format("%.1fkm", distanceInKm)
+        }
+    }
+
+    /**
+     * Tính khoảng cách giữa 2 điểm (km).
+     */
+    fun calculateDistance(userLat: Double?, userLng: Double?, petLat: Double?, petLng: Double?): Float? {
+        if (userLat == null || userLng == null || petLat == null || petLng == null) return null
         return try {
             val results = FloatArray(1)
             Location.distanceBetween(userLat, userLng, petLat, petLng, results)
-            val distanceInMeters = results[0]
-            
-            if (distanceInMeters < 1000) {
-                "${distanceInMeters.toInt()}m"
-            } else {
-                String.format("%.1fkm", distanceInMeters / 1000)
-            }
+            results[0] / 1000f // Chuyển sang km
         } catch (e: Exception) {
             null
         }

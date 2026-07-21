@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,31 +41,106 @@ import com.example.petmate.ui.theme.*
 import com.example.petmate.util.LocationHelper
 import com.example.petmate.util.TimeHelper
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PetDetailsScreen(
-    pet: Pet,
+    initialPet: Pet,
     onBackClick: () -> Unit,
     onViewSellerProfile: (com.example.petmate.model.User) -> Unit = {},
     onChatClick: (com.example.petmate.model.User) -> Unit = {},
     onAdoptClick: () -> Unit = {},
+    onEditClick: (Pet) -> Unit = {},
     userLatitude: Double? = null,
     userLongitude: Double? = null,
     currentUserId: Long? = null
 ) {
+    var pet by remember { mutableStateOf(initialPet) }
+    
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showReportDialog by remember { mutableStateOf(false) }
+    var showPetReportDialog by remember { mutableStateOf(false) }
     var showCancelAdoptionDialog by remember { mutableStateOf(false) }
-    var isDeleting by remember { mutableStateOf(false) }
+    var showStatusDialog by remember { mutableStateOf(false) }
+    var currentPetStatus by remember { mutableStateOf(pet.status ?: "AVAILABLE") }
     
     var adoptionStatus by remember { mutableStateOf<String?>(null) }
     var adoptionId by remember { mutableStateOf<Long?>(null) }
     var isCheckingAdoption by remember { mutableStateOf(true) }
 
+    var isSaved by remember { mutableStateOf(false) }
+    var isLiked by remember { mutableStateOf(false) }
+    var likeCount by remember { mutableIntStateOf(pet.likeCount) }
+
+    var ratingSummary by remember { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
+    var showRatingDialog by remember { mutableStateOf(false) }
+
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    if (showRatingDialog && pet.user?.id != null) {
+        com.example.petmate.ui.components.RatingDialog(
+            initialScore = ratingSummary?.currentUserRating?.score ?: 5.0,
+            initialComment = ratingSummary?.currentUserRating?.comment ?: "",
+            onDismissRequest = { showRatingDialog = false },
+            onSubmit = { score, comment ->
+                showRatingDialog = false
+                coroutineScope.launch {
+                    try {
+                        val request = com.example.petmate.model.RatingRequest(score, pet.id.toLong(), comment)
+                        apiService.rateUser(pet.user!!.id!!, request)
+                        Toast.makeText(context, "Đánh giá thành công!", Toast.LENGTH_SHORT).show()
+                        ratingSummary = apiService.getSellerRatingSummary(pet.user!!.id!!)
+                    } catch (e: retrofit2.HttpException) {
+                        if (e.code() == 403) {
+                            Toast.makeText(context, "Bạn chỉ có thể đánh giá sau khi nhận nuôi thú cưng thành công", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Có lỗi xảy ra khi đánh giá", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Lỗi mạng", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
+    }
+
     LaunchedEffect(pet.id, currentUserId) {
+        // Fetch latest pet details
+        try {
+            val updatedPet = apiService.getPetById(pet.id)
+            pet = updatedPet
+            currentPetStatus = updatedPet.status ?: "AVAILABLE"
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (pet.user?.id != null) {
+            try {
+                ratingSummary = apiService.getSellerRatingSummary(pet.user!!.id!!)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // Fetch Save Status
+        if (currentUserId != null) {
+            try {
+                val saveStatus = apiService.getSaveStatus(pet.id.toLong())
+                isSaved = saveStatus.isSaved
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
+                val likeStatus = apiService.getLikeStatus(pet.id.toLong())
+                isLiked = likeStatus.liked
+                likeCount = likeStatus.likeCount
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         if (currentUserId != null) {
             try {
                 val myApps = apiService.getMyAdoptionApplications()
@@ -128,12 +204,12 @@ fun PetDetailsScreen(
         }
     }
 
-    if (showReportDialog) {
+    if (showPetReportDialog) {
         com.example.petmate.ui.components.ReportDialog(
             reportedPetId = pet.id.toLong(),
-            onDismissRequest = { showReportDialog = false },
+            onDismissRequest = { showPetReportDialog = false },
             onSuccess = {
-                Toast.makeText(context, "Cảm ơn bạn đã báo cáo. Chúng tôi sẽ xem xét sớm nhất!", android.widget.Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Cảm ơn bạn đã báo cáo bài đăng. Chúng tôi sẽ xem xét sớm nhất!", android.widget.Toast.LENGTH_LONG).show()
             }
         )
     }
@@ -141,8 +217,32 @@ fun PetDetailsScreen(
     if (showCancelAdoptionDialog && adoptionId != null) {
         AlertDialog(
             onDismissRequest = { showCancelAdoptionDialog = false },
-            title = { Text("Hủy yêu cầu nhận nuôi") },
-            text = { Text("Bạn có chắc chắn muốn rút lại đơn xin nhận nuôi bé thú cưng này không?") },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.WarningAmber,
+                    contentDescription = null,
+                    tint = ErrorRed,
+                    modifier = Modifier.size(40.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Hủy yêu cầu nhận nuôi",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = DeepBrown,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    text = "Bạn có chắc chắn muốn rút lại đơn xin nhận nuôi bé thú cưng này không? Hành động này không thể hoàn tác.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = TextGray,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
@@ -159,45 +259,55 @@ fun PetDetailsScreen(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
+                    shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                 ) {
-                    Text("Hủy Đơn")
+                    Text("Hủy Đơn", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelAdoptionDialog = false }) {
-                    Text("Đóng")
+                TextButton(
+                    onClick = { showCancelAdoptionDialog = false }
+                ) {
+                    Text("Quay lại", color = TextGray, fontWeight = FontWeight.Medium)
                 }
-            }
+            },
+            containerColor = CardWhite,
+            shape = RoundedCornerShape(28.dp)
         )
     }
 
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         bottomBar = {
-            val isFree = pet.price.isNullOrBlank() || pet.price == "Miễn phí"
-            BottomActionBar(
-                isFree = isFree,
-                adoptionStatus = adoptionStatus,
-                onAdoptClick = onAdoptClick,
-                onCancelAdoptionClick = { showCancelAdoptionDialog = true },
-                onChatClick = {
-                    if (pet.user != null) {
-                        val user = com.example.petmate.model.User(
-                            id = pet.user.id ?: 0L,
-                            fullName = pet.user.fullName ?: "",
-                            email = pet.user.email ?: "",
-                            avatarUrl = pet.user.avatarUrl,
-                            role = pet.user.role ?: "MEMBER",
-                            phone = pet.user.phone,
-                            address = pet.user.address,
-                            latitude = pet.user.latitude,
-                            longitude = pet.user.longitude
-                        )
-                        onChatClick(user)
+            val petUser = pet.user
+            val isOwner = currentUserId != null && petUser != null && currentUserId == petUser.id
+            if (!isOwner) {
+                val isFree = pet.price.isNullOrBlank() || pet.price == "Miễn phí"
+                BottomActionBar(
+                    isFree = isFree,
+                    adoptionStatus = adoptionStatus,
+                    onAdoptClick = onAdoptClick,
+                    onCancelAdoptionClick = { showCancelAdoptionDialog = true },
+                    onChatClick = {
+                        if (petUser != null) {
+                            val user = com.example.petmate.model.User(
+                                id = petUser.id ?: 0L,
+                                fullName = petUser.fullName ?: "",
+                                email = petUser.email ?: "",
+                                avatarUrl = petUser.avatarUrl,
+                                role = petUser.role ?: "MEMBER",
+                                phone = petUser.phone,
+                                address = petUser.address,
+                                latitude = petUser.latitude,
+                                longitude = petUser.longitude
+                            )
+                            onChatClick(user)
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     ) { innerPadding ->
         Column(
@@ -211,40 +321,93 @@ fun PetDetailsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(4f / 3f)
-                    .clickable { showFullScreenImage = true }
             ) {
                 if (!pet.imageUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = pet.imageUrl,
                         contentDescription = pet.name,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { showFullScreenImage = true },
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Image(
                         painter = painterResource(pet.imageRes),
                         contentDescription = pet.name,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { showFullScreenImage = true },
                         contentScale = ContentScale.Crop
                     )
                 }
                 
-                // Back Button overlay
+                // Status Overlay
+                if (currentPetStatus == "SOLD") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "ĐÃ GIAO DỊCH",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            modifier = Modifier
+                                .background(Color.Red, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                } else if (currentPetStatus == "HIDDEN") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "BÀI ĐĂNG ĐÃ ẨN",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            modifier = Modifier
+                                .background(Color.Gray, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+                
+                // Gradient Overlay for top buttons visibility
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
+                            )
+                        )
+                )
+
+                // Top Controls (Back, Share, Like, Bookmark, Report)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.3f))
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                    Row {
-                        IconButton(
+                    DetailActionIcon(
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        onClick = onBackClick
+                    )
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        DetailActionIcon(
+                            icon = Icons.Default.Share,
                             onClick = { 
                                 val sendIntent: Intent = Intent().apply {
                                     action = Intent.ACTION_SEND
@@ -253,25 +416,58 @@ fun PetDetailsScreen(
                                 }
                                 val shareIntent = Intent.createChooser(sendIntent, "Chia sẻ bài đăng")
                                 context.startActivity(shareIntent)
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.3f))
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = "Chia sẻ", tint = Color.White)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = { /* Favorite */ },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.3f))
-                        ) {
-                            Icon(Icons.Default.FavoriteBorder, contentDescription = "Lưu tin", tint = Color.White)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = { showReportDialog = true },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.3f))
-                        ) {
-                            Icon(Icons.Default.Warning, contentDescription = "Báo cáo", tint = Color.White)
-                        }
+                            }
+                        )
+                        
+                        DetailActionIcon(
+                            icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            tint = if (isLiked) Color.Red else Color.White,
+                            badgeText = if (likeCount > 0) likeCount.toString() else null,
+                            onClick = {
+                                if (currentUserId == null) {
+                                    Toast.makeText(context, "Vui lòng đăng nhập để thích bài viết", Toast.LENGTH_SHORT).show()
+                                    return@DetailActionIcon
+                                }
+                                coroutineScope.launch {
+                                    try {
+                                        val newStatus = apiService.toggleLike(pet.id.toLong())
+                                        isLiked = newStatus.liked
+                                        likeCount = newStatus.likeCount
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Có lỗi xảy ra khi thả tim", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        )
+
+                        DetailActionIcon(
+                            icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            tint = if (isSaved) PrimaryPeach else Color.White,
+                            onClick = {
+                                if (currentUserId == null) {
+                                    Toast.makeText(context, "Vui lòng đăng nhập để lưu tin", Toast.LENGTH_SHORT).show()
+                                    return@DetailActionIcon
+                                }
+                                coroutineScope.launch {
+                                    try {
+                                        val newStatus = apiService.toggleSave(pet.id.toLong())
+                                        isSaved = newStatus.isSaved
+                                        if (isSaved) {
+                                            Toast.makeText(context, "Đã lưu tin đăng", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Đã bỏ lưu tin", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Có lỗi xảy ra khi lưu tin", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        )
+
+                        DetailActionIcon(
+                            icon = Icons.Default.Warning,
+                            onClick = { showPetReportDialog = true }
+                        )
                     }
                 }
             }
@@ -330,94 +526,84 @@ fun PetDetailsScreen(
             
             Spacer(modifier = Modifier.height(8.dp)) // Divider gap
             
-            // Seller Profile Section (White bg)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+            // Seller Profile Section (Cho Tot Style)
+            val seller = pet.user
+            com.example.petmate.ui.components.SellerInfoCard(
+                seller = seller,
+                ratingSummary = ratingSummary,
+                currentUserId = currentUserId,
+                onViewProfile = {
+                    seller?.let { s ->
+                        val user = com.example.petmate.model.User(
+                            id = s.id ?: 0L,
+                            fullName = s.fullName ?: "",
+                            email = s.email ?: "",
+                            avatarUrl = s.avatarUrl,
+                            role = s.role ?: "MEMBER",
+                            phone = s.phone,
+                            address = s.address,
+                            latitude = s.latitude,
+                            longitude = s.longitude
+                        )
+                        onViewSellerProfile(user)
+                    }
+                },
+                onWriteReview = { showRatingDialog = true }
+            )
+
+            // Management Actions Section (Wrapped in Column for spacing/bg)
+            if (currentUserId != null && seller != null && currentUserId == seller.id) {
+                Column(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.LightGray)
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    if (!pet.user?.avatarUrl.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = pet.user.avatarUrl,
-                            contentDescription = "Seller Avatar",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(R.drawable.app_logo),
-                            contentDescription = "Seller Avatar",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.FillBounds
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = pet.user?.fullName ?: "Người dùng ẩn danh",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = pet.user?.address ?: "Chưa cập nhật địa chỉ",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-                if (currentUserId != null && pet.user != null && currentUserId == pet.user.id) {
-                    OutlinedButton(
-                        onClick = { showDeleteDialog = true },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                        modifier = Modifier.height(36.dp)
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Xoá bài", color = Color.Red)
-                    }
-                } else {
-                    Button(
-                        onClick = { 
-                            if (pet.user != null) {
-                                val user = com.example.petmate.model.User(
-                                    id = pet.user.id ?: 0L,
-                                    fullName = pet.user.fullName ?: "",
-                                    email = pet.user.email ?: "",
-                                    avatarUrl = pet.user.avatarUrl,
-                                    role = pet.user.role ?: "MEMBER",
-                                    phone = pet.user.phone,
-                                    address = pet.user.address,
-                                    latitude = pet.user.latitude,
-                                    longitude = pet.user.longitude
-                                )
-                                onViewSellerProfile(user)
-                            }
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryPeach.copy(alpha = 0.1f),
-                            contentColor = PrimaryPeach
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                        modifier = Modifier.height(36.dp),
-                        elevation = null // Flat look
-                    ) {
-                        Text("Xem trang", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(16.dp))
+                        OutlinedButton(
+                            onClick = { onEditClick(pet) },
+                            modifier = Modifier.weight(1f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF424242)),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Sửa tin", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { showStatusDialog = true },
+                            modifier = Modifier.weight(1.2f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, PrimaryPeach.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryPeach),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Đổi trạng thái", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.weight(0.8f).height(38.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFFEBEE)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Xoá", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             }
@@ -425,11 +611,12 @@ fun PetDetailsScreen(
             // Other pets by this seller
             var sellerPets by remember { mutableStateOf<List<Pet>>(emptyList()) }
             var isLoadingPets by remember { mutableStateOf(false) }
-            LaunchedEffect(pet.user?.id) {
-                if (pet.user?.id != null) {
+            val sellerId = pet.user?.id
+            LaunchedEffect(sellerId) {
+                if (sellerId != null) {
                     isLoadingPets = true
                     try {
-                        val allPets = apiService.getPetsByUser(pet.user.id)
+                        val allPets = apiService.getPetsByUser(sellerId)
                         sellerPets = allPets.filter { it.id != pet.id } // exclude current pet
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -519,44 +706,161 @@ fun PetDetailsScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Status Change Dialog
+            if (showStatusDialog) {
+                var selectedStatus by remember { mutableStateOf(currentPetStatus) }
+                var isUpdatingStatus by remember { mutableStateOf(false) }
+                
+                AlertDialog(
+                    onDismissRequest = { if (!isUpdatingStatus) showStatusDialog = false },
+                    shape = RoundedCornerShape(24.dp),
+                    containerColor = Color.White,
+                    title = { 
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Sync, contentDescription = null, tint = PrimaryPeach, modifier = Modifier.size(32.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Cập nhật trạng thái", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                    },
+                    text = {
+                        Column(modifier = Modifier.padding(top = 8.dp)) {
+                            val options = listOf(
+                                "AVAILABLE" to "Đang hiển thị" to "Mọi người có thể tìm thấy tin của bạn",
+                                "SOLD" to "Đã giao dịch" to "Đánh dấu bé đã tìm được chủ mới",
+                                "HIDDEN" to "Ẩn tin" to "Tạm thời không hiển thị với mọi người"
+                            )
+                            options.forEach { (data, subtitle) ->
+                                val (code, label) = data
+                                Surface(
+                                    onClick = { selectedStatus = code },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (selectedStatus == code) PrimaryPeach.copy(alpha = 0.08f) else Color.Transparent,
+                                    border = if (selectedStatus == code) BorderStroke(1.dp, PrimaryPeach.copy(alpha = 0.5f)) else null,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = selectedStatus == code,
+                                            onClick = { selectedStatus = code },
+                                            colors = RadioButtonDefaults.colors(selectedColor = PrimaryPeach)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(text = label, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (selectedStatus == code) PrimaryPeach else Color.Black)
+                                            Text(text = subtitle, fontSize = 12.sp, color = Color.Gray)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                isUpdatingStatus = true
+                                coroutineScope.launch {
+                                    try {
+                                        apiService.updatePetStatus(pet.id, selectedStatus)
+                                        currentPetStatus = selectedStatus
+                                        Toast.makeText(context, "Cập nhật thành công!", Toast.LENGTH_SHORT).show()
+                                        showStatusDialog = false
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Lỗi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isUpdatingStatus = false
+                                    }
+                                }
+                            },
+                            enabled = !isUpdatingStatus,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPeach)
+                        ) {
+                            if (isUpdatingStatus) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                            } else {
+                                Text("Xác nhận", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showStatusDialog = false },
+                            enabled = !isUpdatingStatus
+                        ) {
+                            Text("Hủy", color = Color.Gray, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                )
+            }
+
             // Delete Confirmation Dialog
             if (showDeleteDialog) {
+                var isDeletingThisPet by remember { mutableStateOf(false) }
                 AlertDialog(
-                    onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
-                    title = { Text("Xác nhận xoá") },
-                    text = { Text("Bạn có chắc chắn muốn xoá bài đăng này không? Hành động này không thể hoàn tác.") },
+                    onDismissRequest = { if (!isDeletingThisPet) showDeleteDialog = false },
+                    shape = RoundedCornerShape(24.dp),
+                    containerColor = Color.White,
+                    icon = {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFFEBEE)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red, modifier = Modifier.size(32.dp))
+                        }
+                    },
+                    title = { 
+                        Text("Xoá bài đăng này?", fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    },
+                    text = { 
+                        Text(
+                            "Hành động này sẽ xoá vĩnh viễn tin đăng của bé và không thể khôi phục lại. Bạn có chắc chắn không?",
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            lineHeight = 20.sp,
+                            color = Color.DarkGray
+                        )
+                    },
                     confirmButton = {
-                        TextButton(
+                        Button(
                             onClick = {
-                                isDeleting = true
+                                isDeletingThisPet = true
                                 coroutineScope.launch {
                                     try {
                                         apiService.deletePet(pet.id)
                                         Toast.makeText(context, "Đã xoá bài đăng", Toast.LENGTH_SHORT).show()
                                         showDeleteDialog = false
-                                        onBackClick() // Go back after delete
+                                        onBackClick()
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Lỗi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                                     } finally {
-                                        isDeleting = false
+                                        isDeletingThisPet = false
                                     }
                                 }
                             },
-                            enabled = !isDeleting
+                            enabled = !isDeletingThisPet,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            if (isDeleting) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            if (isDeletingThisPet) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             } else {
-                                Text("Xoá", color = Color.Red)
+                                Text("Xoá ngay", fontWeight = FontWeight.Bold)
                             }
                         }
                     },
                     dismissButton = {
                         TextButton(
                             onClick = { showDeleteDialog = false },
-                            enabled = !isDeleting
+                            enabled = !isDeletingThisPet,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Hủy", color = Color.Gray)
+                            Text("Quay lại", color = Color.Gray, fontWeight = FontWeight.Medium)
                         }
                     }
                 )
@@ -625,8 +929,47 @@ fun PetDetailsScreen(
                     lineHeight = 18.sp
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
             
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun DetailActionIcon(
+    icon: ImageVector,
+    onClick: () -> Unit,
+    tint: Color = Color.White,
+    badgeText: String? = null
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = Color.Black.copy(alpha = 0.3f),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
+        modifier = if (badgeText != null) Modifier.height(36.dp) else Modifier.size(36.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = if (badgeText != null) 12.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(18.dp)
+            )
+            if (badgeText != null) {
+                Text(
+                    text = badgeText,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
         }
     }
 }
@@ -737,7 +1080,7 @@ fun BottomActionBar(
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Default.Favorite, contentDescription = "Nhận nuôi", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Pets, contentDescription = "Nhận nuôi", modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Nhận nuôi", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
@@ -779,6 +1122,6 @@ fun PetDetailsScreenPreview() {
         imageRes = R.drawable.beagle_dog
     )
     PetMateTheme {
-        PetDetailsScreen(pet = samplePet, onBackClick = {})
+        PetDetailsScreen(initialPet = samplePet, onBackClick = {})
     }
 }

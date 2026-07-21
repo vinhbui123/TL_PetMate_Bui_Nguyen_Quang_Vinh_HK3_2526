@@ -1,203 +1,180 @@
 package com.example.petmate.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.petmate.model.ReportRequest
 import com.example.petmate.network.NetworkClient
+import com.example.petmate.ui.theme.*
 import kotlinx.coroutines.launch
+import android.widget.Toast
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportDialog(
     reportedPetId: Long? = null,
     reportedUserId: Long? = null,
+    reportedMessageId: Long? = null,
     onDismissRequest: () -> Unit,
     onSuccess: () -> Unit
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var selectedReason by remember { mutableStateOf<String?>(null) }
-    var description by remember { mutableStateOf("") }
-    var isSubmitting by remember { mutableStateOf(false) }
-
+    
     val reasons = listOf(
-        "Lừa đảo",
+        "Spam, lừa đảo",
+        "Hình ảnh phản cảm, bạo lực",
+        "Nội dung không phù hợp",
         "Thông tin sai sự thật",
-        "Bán thú cưng bị bệnh/cấm",
-        "Tài khoản giả mạo",
         "Lý do khác"
     )
-
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
-        Column(
+    
+    var selectedReason by remember { mutableStateOf(reasons[0]) }
+    var description by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
+    
+    Dialog(onDismissRequest = { if (!isSubmitting) onDismissRequest() }) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(16.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = CardWhite),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Warning",
-                        tint = Color(0xFFE53935), // Red Warning Color
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Báo cáo vi phạm",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextGray,
+                    modifier = Modifier.padding(bottom = 20.dp),
+                    textAlign = TextAlign.Center
+                )
+                
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = if (reportedPetId != null) "Báo cáo tin đăng" else "Báo cáo người dùng",
-                        style = MaterialTheme.typography.titleLarge,
+                        text = "Vui lòng chọn lý do báo cáo:",
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = TextGray,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
-                }
-                IconButton(onClick = onDismissRequest) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Vui lòng chọn lý do để chúng tôi xem xét:",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.DarkGray,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            // Reason List
-            LazyColumn(
-                modifier = Modifier.padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(reasons) { reason ->
-                    val isSelected = selectedReason == reason
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) com.example.petmate.ui.theme.PrimaryPeach.copy(alpha = 0.1f) else Color(0xFFF5F5F5))
-                            .border(
-                                width = if (isSelected) 1.dp else 0.dp,
-                                color = if (isSelected) com.example.petmate.ui.theme.PrimaryPeach else Color.Transparent,
-                                shape = RoundedCornerShape(12.dp)
+                    
+                    reasons.forEach { reason ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (reason == selectedReason),
+                                    onClick = { selectedReason = reason }
+                                )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (reason == selectedReason),
+                                onClick = { selectedReason = reason },
+                                colors = RadioButtonDefaults.colors(selectedColor = AccentOrange)
                             )
-                            .clickable { selectedReason = reason }
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        Text(
-                            text = reason,
-                            modifier = Modifier.weight(1f),
-                            fontSize = 15.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) com.example.petmate.ui.theme.PrimaryPeach else Color.Black
-                        )
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Selected",
-                                tint = com.example.petmate.ui.theme.PrimaryPeach,
-                                modifier = Modifier.size(20.dp)
+                            Text(
+                                text = reason,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextGray,
+                                modifier = Modifier.padding(start = 8.dp)
                             )
                         }
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Description Box
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                placeholder = { Text("Mô tả chi tiết hơn (không bắt buộc)", color = Color.Gray) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(110.dp),
-                shape = RoundedCornerShape(12.dp),
-                maxLines = 4,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = com.example.petmate.ui.theme.PrimaryPeach,
-                    unfocusedBorderColor = Color.LightGray,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    placeholder = { Text("Mô tả chi tiết (Tùy chọn)", color = IconGray) },
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentOrange,
+                        unfocusedBorderColor = InputBorder,
+                        focusedContainerColor = InputBackground,
+                        unfocusedContainerColor = InputBackground
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextGray)
                 )
-            )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, InputBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextGray),
+                        enabled = !isSubmitting
+                    ) {
+                        Text("Hủy", fontWeight = FontWeight.Bold)
+                    }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Submit Button
-            Button(
-                onClick = {
-                    if (selectedReason != null) {
-                        isSubmitting = true
-                        coroutineScope.launch {
-                            try {
-                                val request = ReportRequest(
-                                    reportedPetId = reportedPetId,
-                                    reportedUserId = reportedUserId,
-                                    reason = selectedReason!!,
-                                    description = description
-                                )
-                                val response = NetworkClient.apiService.submitReport(request)
-                                if (response.isSuccessful) {
+                    Button(
+                        onClick = {
+                            isSubmitting = true
+                            coroutineScope.launch {
+                                try {
+                                    val request = ReportRequest(
+                                        reportedPetId = reportedPetId,
+                                        reportedUserId = reportedUserId,
+                                        reportedMessageId = reportedMessageId,
+                                        reason = selectedReason,
+                                        description = description.takeIf { it.isNotBlank() }
+                                    )
+                                    NetworkClient.apiService.submitReport(request)
                                     onSuccess()
                                     onDismissRequest()
-                                } else {
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Lỗi khi gửi báo cáo: ${e.message}", Toast.LENGTH_SHORT).show()
                                     isSubmitting = false
                                 }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                isSubmitting = false
                             }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
+                        shape = RoundedCornerShape(14.dp),
+                        enabled = !isSubmitting
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Báo cáo", fontWeight = FontWeight.ExtraBold, color = Color.White)
                         }
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                enabled = selectedReason != null && !isSubmitting,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = com.example.petmate.ui.theme.PrimaryPeach,
-                    disabledContainerColor = Color.LightGray
-                )
-            ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Gửi Báo Cáo", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

@@ -61,6 +61,7 @@ fun NavGraph(
                 onNavigateToPostApproval = { onNavigate(Screen.AdminPostApproval) },
                 onNavigateToBroadcast = { onNavigate(Screen.AdminBroadcast) },
                 onNavigateToUserManagement = { onNavigate(Screen.AdminUserManagement) },
+                onNavigateToReports = { onNavigate(Screen.AdminReportManagement) },
                 onBack = onPop
             )
         }
@@ -97,6 +98,9 @@ fun NavGraph(
                 },
                 onManageAdoptions = {
                     onNavigate(Screen.AdoptionManagement)
+                },
+                onViewSavedPets = {
+                    onNavigate(Screen.SavedPets)
                 }
             )
         }
@@ -110,7 +114,8 @@ fun NavGraph(
         is Screen.PostHistory -> {
             BackHandler { onPop() }
             PostHistoryScreen(
-                onBack = onPop
+                onBack = onPop,
+                onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) }
             )
         }
         is Screen.FollowList -> {
@@ -180,7 +185,7 @@ fun NavGraph(
         is Screen.PetDetails -> {
             BackHandler { onPop() }
             PetDetailsScreen(
-                pet = currentScreen.pet,
+                initialPet = currentScreen.pet,
                 onBackClick = onPop,
                 onAdoptClick = {
                     if (currentUser == null) {
@@ -223,7 +228,34 @@ fun NavGraph(
                 },
                 userLatitude = userLatitude,
                 userLongitude = userLongitude,
-                currentUserId = currentUser?.id
+                currentUserId = currentUser?.id,
+                onEditClick = { petToEdit ->
+                    onNavigate(Screen.EditPet(petToEdit))
+                }
+            )
+        }
+        is Screen.EditPet -> {
+            BackHandler { onPop() }
+            EditPetScreen(
+                pet = currentScreen.pet,
+                onBackClick = onPop,
+                onEditSuccess = onPop
+            )
+        }
+        is Screen.AdminReportManagement -> {
+            BackHandler { onPop() }
+            com.example.petmate.ui.AdminReportManagementScreen(
+                onBack = onPop
+            )
+        }
+        is Screen.SavedPets -> {
+            BackHandler { onPop() }
+            SavedPetsScreen(
+                onBackClick = onPop,
+                onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) },
+                currentUser = currentUser,
+                userLatitude = userLatitude,
+                userLongitude = userLongitude
             )
         }
     }

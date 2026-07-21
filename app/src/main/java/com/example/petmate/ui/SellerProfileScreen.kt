@@ -10,11 +10,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
@@ -33,6 +36,7 @@ import com.example.petmate.R
 import com.example.petmate.model.Pet
 import com.example.petmate.model.PetUser
 import com.example.petmate.network.NetworkClient
+import com.example.petmate.ui.components.MarketItemCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +52,8 @@ fun SellerProfileScreen(
     onViewFollowers: (Long, Int) -> Unit = { _, _ -> }
 ) {
     var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
+    var ratingSummary by remember { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var showReportDialog by remember { mutableStateOf(false) }
@@ -83,6 +89,11 @@ fun SellerProfileScreen(
             
             // Fetch seller's pets
             pets = NetworkClient.apiService.getPetsByUser(sellerId)
+            try {
+                ratingSummary = NetworkClient.apiService.getSellerRatingSummary(sellerId)
+            } catch (e: Exception) {
+                // Ignore
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             errorMsg = "Không thể tải thông tin người dùng"
@@ -317,37 +328,144 @@ fun SellerProfileScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Body
-            Text(
-                text = "Tin đang đăng (${pets.size})",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(16.dp)
-            )
+            // Tabs
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = Color.White,
+                contentColor = com.example.petmate.ui.theme.PrimaryPeach,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = { Text("Cửa hàng", fontWeight = FontWeight.SemiBold) }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = { Text("Đánh giá", fontWeight = FontWeight.SemiBold) }
+                )
+            }
 
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = com.example.petmate.ui.theme.PrimaryPeach)
-                }
-            } else if (pets.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Người dùng này chưa có bài đăng nào.", color = Color.Gray)
+            if (selectedTabIndex == 0) {
+                Text(
+                    text = "Tin đang đăng (${pets.size})",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
+
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = com.example.petmate.ui.theme.PrimaryPeach)
+                    }
+                } else if (pets.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Người dùng này chưa có bài đăng nào.", color = Color.Gray)
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(pets) { pet ->
+                            MarketItemCard(
+                                item = pet,
+                                onClick = onPetClick,
+                                userLatitude = userLatitude,
+                                userLongitude = userLongitude
+                            )
+                        }
+                    }
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(pets) { pet ->
-                        MarketItemCard(
-                            item = pet,
-                            onClick = onPetClick,
-                            userLatitude = userLatitude,
-                            userLongitude = userLongitude
-                        )
+                // Review Tab
+                val reviews = ratingSummary?.recentReviews ?: emptyList()
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = com.example.petmate.ui.theme.PrimaryPeach)
+                    }
+                } else if (reviews.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Chưa có đánh giá nào.", color = Color.Gray)
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(reviews.size) { index ->
+                            val review = reviews[index]
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFEEEEEE))
+                                    ) {
+                                        if (!review.raterAvatarUrl.isNullOrEmpty()) {
+                                            AsyncImage(
+                                                model = review.raterAvatarUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.align(Alignment.Center))
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(review.raterName ?: "Người dùng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            repeat(review.score.toInt()) {
+                                                Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(com.example.petmate.util.TimeHelper.getRelativeTime(review.createdAt), fontSize = 12.sp, color = Color.Gray)
+                                        }
+                                    }
+                                }
+                                
+                                if (!review.comment.isNullOrEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(review.comment, fontSize = 14.sp, color = Color(0xFF212121))
+                                }
+
+                                if (!review.petName.isNullOrEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
+                                            .padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (!review.petImageUrl.isNullOrEmpty()) {
+                                            AsyncImage(
+                                                model = review.petImageUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(4.dp)),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                        }
+                                        Column {
+                                            Text(review.petName, fontSize = 13.sp, color = Color(0xFF424242), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            if (!review.petPrice.isNullOrEmpty()) {
+                                                Text(review.petPrice, fontSize = 13.sp, color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (index < reviews.size - 1) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                HorizontalDivider(color = Color(0xFFEEEEEE))
+                            }
+                        }
                     }
                 }
             }

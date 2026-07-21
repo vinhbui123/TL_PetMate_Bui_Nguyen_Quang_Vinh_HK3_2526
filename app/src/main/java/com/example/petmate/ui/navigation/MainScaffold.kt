@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -121,10 +122,23 @@ fun MainScaffold(
                         selected = selectedTab == 2,
                         onClick = { 
                             if (currentUser == null) {
-                                Toast.makeText(context, "Vui lòng đăng nhập để xem tin nhắn!", android.widget.Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Vui lòng đăng nhập để xem đơn!", android.widget.Toast.LENGTH_SHORT).show()
                                 onLogout()
                             } else {
                                 onTabSelected(2)
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Assignment, contentDescription = "Đơn của tôi") },
+                        label = { Text("Đơn của tôi") }
+                    )
+                    NavigationBarItem(
+                        selected = selectedTab == 3,
+                        onClick = { 
+                            if (currentUser == null) {
+                                Toast.makeText(context, "Vui lòng đăng nhập để xem tin nhắn!", android.widget.Toast.LENGTH_SHORT).show()
+                                onLogout()
+                            } else {
+                                onTabSelected(3)
                             }
                         },
                         icon = { 
@@ -185,12 +199,21 @@ fun MainScaffold(
                     }
                 }
                 2 -> {
-                    ChatInboxScreen(
-                        currentUserId = currentUser!!.id,
-                        onRoomClick = { room ->
-                            onNavigate(Screen.ChatConversation(room))
-                        }
-                    )
+                    if (userRole == "RESCUE_ORG") {
+                        // Empty for RESCUE_ORG as they only have 2 tabs
+                    } else {
+                        AdoptionManagementScreen(currentUserId = currentUser?.id)
+                    }
+                }
+                3 -> {
+                    if (userRole != "RESCUE_ORG") {
+                        ChatInboxScreen(
+                            currentUserId = currentUser!!.id,
+                            onRoomClick = { room ->
+                                onNavigate(Screen.ChatConversation(room))
+                            }
+                        )
+                    }
                 }
             }
         }

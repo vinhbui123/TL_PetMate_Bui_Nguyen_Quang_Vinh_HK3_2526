@@ -1,6 +1,7 @@
 package com.example.petmate.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,7 +27,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostHistoryScreen(onBack: () -> Unit) {
+fun PostHistoryScreen(onBack: () -> Unit, onPetClick: (Pet) -> Unit = {}) {
     var myPets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -43,7 +44,7 @@ fun PostHistoryScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Lịch sử đăng tin") },
+                title = { Text("Quản lí tin đăng") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
@@ -74,7 +75,7 @@ fun PostHistoryScreen(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(myPets) { pet ->
-                            PostHistoryCard(pet = pet)
+                            PostHistoryCard(pet = pet, onClick = { onPetClick(pet) })
                         }
                     }
                 }
@@ -84,7 +85,7 @@ fun PostHistoryScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun PostHistoryCard(pet: Pet) {
+fun PostHistoryCard(pet: Pet, onClick: () -> Unit = {}) {
     val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
     
     val statusText = when (pet.status) {
@@ -104,7 +105,7 @@ fun PostHistoryCard(pet: Pet) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
