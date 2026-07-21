@@ -1,13 +1,13 @@
 package com.petmate.server.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.petmate.server.enums.RoleType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "users")
@@ -39,7 +39,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "VARCHAR(50)")
     @Builder.Default
-    private com.petmate.server.enums.RoleType role = com.petmate.server.enums.RoleType.MEMBER;
+    private RoleType role = RoleType.MEMBER;
 
     private String phone;
     
@@ -55,6 +55,18 @@ public class User {
     @Builder.Default
     private String status = "PENDING";
 
+    @Column(name = "average_rating")
+    @Builder.Default
+    private Double averageRating = 0.0;
+
+    @Column(name = "rating_count")
+    @Builder.Default
+    private Integer ratingCount = 0;
+
+    @Column(name = "violation_count")
+    @Builder.Default
+    private Integer violationCount = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -62,4 +74,13 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
+
+    @PrePersist
+    @PreUpdate
+    public void updateLastActive() {
+        this.lastActiveAt = LocalDateTime.now();
+    }
 }

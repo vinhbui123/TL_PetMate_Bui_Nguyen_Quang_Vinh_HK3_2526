@@ -6,6 +6,7 @@ import lombok.Data;
 public class ReportRequestDto {
     private Long reportedPetId;
     private Long reportedUserId;
+    private Long reportedMessageId;
     private String reason;
     private String description;
 }

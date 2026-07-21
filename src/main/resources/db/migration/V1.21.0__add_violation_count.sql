@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN violation_count INT DEFAULT 0;

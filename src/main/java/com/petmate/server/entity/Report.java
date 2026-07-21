@@ -1,9 +1,12 @@
 package com.petmate.server.entity;
 
+import com.petmate.server.enums.ReportStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,6 +34,10 @@ public class Report {
     @JoinColumn(name = "reported_user_id")
     private User reportedUser;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reported_message_id")
+    private ChatMessage reportedMessage;
+
     @Column(nullable = false)
     private String reason;
 
@@ -38,10 +45,10 @@ public class Report {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.VARCHAR)
+    @JdbcTypeCode(Types.VARCHAR)
     @Column(length = 20)
     @Builder.Default
-    private com.petmate.server.enums.ReportStatus status = com.petmate.server.enums.ReportStatus.PENDING;
+    private ReportStatus status = ReportStatus.PENDING;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

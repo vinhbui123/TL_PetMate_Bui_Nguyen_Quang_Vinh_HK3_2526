@@ -1,13 +1,15 @@
 package com.petmate.server.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.petmate.server.enums.AdStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "pets")
@@ -45,14 +47,18 @@ public class Pet {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
-    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "providerId", "provider", "createdAt", "updatedAt"})
+    @JsonIgnoreProperties({"password", "providerId", "provider", "createdAt", "updatedAt"})
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.VARCHAR)
+    @JdbcTypeCode(Types.VARCHAR)
     @Column(length = 20)
     @Builder.Default
-    private com.petmate.server.enums.AdStatus status = com.petmate.server.enums.AdStatus.AVAILABLE;
+    private AdStatus status = AdStatus.AVAILABLE;
+
+    @Column(name = "like_count")
+    @Builder.Default
+    private Integer likeCount = 0;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
