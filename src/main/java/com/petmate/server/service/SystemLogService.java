@@ -38,8 +38,13 @@ public class SystemLogService {
                     .build();
             systemLogRepository.save(entry);
         } catch (Exception e) {
-            // Tránh log lỗi gây vòng lặp vô tận
+            // TrÃ¡nh log lá»—i gÃ¢y vÃ²ng láº·p vÃ´ táº­n
             log.error("[SystemLogService] Failed to save log: {}", e.getMessage());
         }
+    }
+
+    public java.util.List<SystemLog> getRecentLogs(int limit) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        return systemLogRepository.findAll(pageable).getContent();
     }
 }

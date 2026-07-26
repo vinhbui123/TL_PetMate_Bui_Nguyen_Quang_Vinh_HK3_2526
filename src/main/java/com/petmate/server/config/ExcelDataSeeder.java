@@ -2,63 +2,74 @@ package com.petmate.server.config;
 
 import com.petmate.server.entity.Pet;
 import com.petmate.server.repository.PetRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.math.BigDecimal;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class ExcelDataSeeder implements CommandLineRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(ExcelDataSeeder.class);
     private final PetRepository petRepository;
+
+    public ExcelDataSeeder(PetRepository petRepository) {
+        this.petRepository = petRepository;
+    }
 
     @Override
     public void run(String... args) throws Exception {
         if (petRepository.count() > 0) {
-            log.info("Bảng pets đã có dữ liệu. Bỏ qua quá trình import Excel.");
+            log.info("Báº£ng pets Ä‘Ã£ cÃ³ dá»¯ liá»‡u. Bá» qua quÃ¡ trÃ¬nh import Excel.");
             return;
         }
 
         File excelFile = new File("d:/petAppServer/pet data.xlsx");
         if (!excelFile.exists()) {
-            log.warn("Không tìm thấy file pet data.xlsx tại thư mục gốc. Bỏ qua import.");
+            log.warn("KhÃ´ng tÃ¬m tháº¥y file pet data.xlsx táº¡i thÆ° má»¥c gá»‘c. Bá» qua import.");
             return;
         }
 
-        log.info("Bắt đầu import dữ liệu từ file Excel...");
+        log.info("Báº¯t Ä‘áº§u import dá»¯ liá»‡u tá»« file Excel...");
         try (FileInputStream fis = new FileInputStream(excelFile);
              Workbook workbook = new XSSFWorkbook(fis)) {
 
-            Sheet sheet = workbook.getSheetAt(0); // Lấy sheet đầu tiên
+            Sheet sheet = workbook.getSheetAt(0); // Láº¥y sheet Ä‘áº§u tiÃªn
             boolean isFirstRow = true;
 
             for (Row row : sheet) {
                 if (isFirstRow) {
-                    isFirstRow = false; // Bỏ qua dòng header
+                    isFirstRow = false; // Bá» qua dÃ²ng header
                     continue;
                 }
 
-                // Cột A: Tiêu Đề
+                // Cá»™t A: TiÃªu Äá»
                 String name = getCellValue(row.getCell(0));
-                // Cột B: Giá
-                String price = getCellValue(row.getCell(1));
-                // Cột C: Mô Tả
+                // Cá»™t B: GiÃ¡
+                String priceStr = getCellValue(row.getCell(1));
+                // Cá»™t C: MÃ´ Táº£
                 String description = getCellValue(row.getCell(2));
-                // Cột D: Link Ảnh
+                // Cá»™t D: Link áº¢nh
                 String imageUrl = getCellValue(row.getCell(3));
 
                 if (name == null || name.trim().isEmpty()) {
                     continue;
                 }
 
-                // Phân loại dựa trên tên + mô tả
+                BigDecimal price = null;
+                if (priceStr != null && !priceStr.trim().isEmpty()) {
+                    try {
+                        price = new BigDecimal(priceStr.trim().replaceAll("[^0-9.]", ""));
+                    } catch (Exception ignored) {}
+                }
+
+                // PhÃ¢n loáº¡i dá»±a trÃªn tÃªn + mÃ´ táº£
                 String category = detectCategory(name, description);
 
                 Pet pet = Pet.builder()
@@ -67,16 +78,16 @@ public class ExcelDataSeeder implements CommandLineRunner {
                         .description(description)
                         .imageUrl(imageUrl)
                         .category(category)
-                        .breed("Không xác định")
-                        .age("Không xác định")
+                        .breed("KhÃ´ng xÃ¡c Ä‘á»‹nh")
+                        .ageMonths(null)
                         .build();
 
                 petRepository.save(pet);
             }
-            log.info("Import dữ liệu Excel thành công!");
+            log.info("Import dá»¯ liá»‡u Excel thÃ nh cÃ´ng!");
 
         } catch (Exception e) {
-            log.error("Lỗi khi import file Excel: ", e);
+            log.error("Lá»—i khi import file Excel: ", e);
         }
     }
 
@@ -101,62 +112,62 @@ public class ExcelDataSeeder implements CommandLineRunner {
     private String detectCategory(String name, String description) {
         String text = (name + " " + (description != null ? description : "")).toLowerCase();
 
-        // Từ khóa CHÓ
+        // Tá»« khÃ³a CHÃ“
         String[] dogKeywords = {
-                "chó", "cún", "cẩu", "puppy", "dog",
+                "chÃ³", "cÃºn", "cáº©u", "puppy", "dog",
                 "poodle", "corgi", "husky", "golden", "retriever",
-                "phốc", "pomeranian", "chihuahua", "beagle",
+                "phá»‘c", "pomeranian", "chihuahua", "beagle",
                 "shiba", "alaska", "bull", "pitbull", "dachshund",
-                "phú quốc", "becgie", "becgiê", "rottweiler",
-                "labrador", "samoyed", "bắc kinh", "nhật", "pug",
-                "bichon", "border collie", "chăn cừu"
+                "phÃº quá»‘c", "becgie", "becgiÃª", "rottweiler",
+                "labrador", "samoyed", "báº¯c kinh", "nháº­t", "pug",
+                "bichon", "border collie", "chÄƒn cá»«u"
         };
 
-        // Từ khóa MÈO
+        // Tá»« khÃ³a MÃˆO
         String[] catKeywords = {
-                "mèo", "cat", "kitten", "kitty",
-                "aln", "anh lông ngắn", "ba tư", "persian",
+                "mÃ¨o", "cat", "kitten", "kitty",
+                "aln", "anh lÃ´ng ngáº¯n", "ba tÆ°", "persian",
                 "scottish", "munchkin", "ragdoll", "bengal",
                 "sphynx", "siamese", "maine coon", "british",
-                "tai cụp", "lông dài", "lông ngắn", "tabby"
+                "tai cá»¥p", "lÃ´ng dÃ i", "lÃ´ng ngáº¯n", "tabby"
         };
 
-        // Từ khóa CHIM CẢNH
+        // Tá»« khÃ³a CHIM Cáº¢NH
         String[] birdKeywords = {
-                "chim", "vẹt", "yến phụng", "chào mào", "sáo",
-                "parrot", "bird", "bồ câu", "cu gáy",
-                "két", "cockatiel", "canary", "hoàng yến",
-                "đại bàng", "cú", "chích chòe", "sẻ"
+                "chim", "váº¹t", "yáº¿n phá»¥ng", "chÃ o mÃ o", "sÃ¡o",
+                "parrot", "bird", "bá»“ cÃ¢u", "cu gÃ¡y",
+                "kÃ©t", "cockatiel", "canary", "hoÃ ng yáº¿n",
+                "Ä‘áº¡i bÃ ng", "cÃº", "chÃ­ch chÃ²e", "sáº»"
         };
 
-        // Từ khóa CÁ CẢNH
+        // Tá»« khÃ³a CÃ Cáº¢NH
         String[] fishKeywords = {
-                "cá", "fish", "bể cá", "koi", "betta",
-                "cá vàng", "cá chép", "cá rồng", "cá bảy màu",
-                "cá dĩa", "cá neon", "cá guppy", "hồ cá"
+                "cÃ¡", "fish", "bá»ƒ cÃ¡", "koi", "betta",
+                "cÃ¡ vÃ ng", "cÃ¡ chÃ©p", "cÃ¡ rá»“ng", "cÃ¡ báº£y mÃ u",
+                "cÃ¡ dÄ©a", "cÃ¡ neon", "cÃ¡ guppy", "há»“ cÃ¡"
         };
 
-        // Từ khóa HAMSTER / Gặm nhấm nhỏ
+        // Tá»« khÃ³a HAMSTER / Gáº·m nháº¥m nhá»
         String[] hamsterKeywords = {
-                "hamster", "chuột", "chinchilla", "guinea pig",
-                "sóc", "nhím"
+                "hamster", "chuá»™t", "chinchilla", "guinea pig",
+                "sÃ³c", "nhÃ­m"
         };
 
-        // Từ khóa THỎ
+        // Tá»« khÃ³a THá»Ž
         String[] rabbitKeywords = {
-                "thỏ", "rabbit", "bunny"
+                "thá»", "rabbit", "bunny"
         };
 
-        // Từ khóa GIA CẦM
+        // Tá»« khÃ³a GIA Cáº¦M
         String[] poultryKeywords = {
-                "gà", "vịt", "ngan", "ngỗng", "chim cút",
-                "gà kiểng", "gà tre", "gà chọi"
+                "gÃ ", "vá»‹t", "ngan", "ngá»—ng", "chim cÃºt",
+                "gÃ  kiá»ƒng", "gÃ  tre", "gÃ  chá»i"
         };
 
-        // Từ khóa KHÁC (bò sát, etc.)
+        // Tá»« khÃ³a KHÃC (bÃ² sÃ¡t, etc.)
         String[] otherKeywords = {
-                "rùa", "turtle", "rắn", "snake", "rồng", "gecko",
-                "bò sát", "tắc kè", "kỳ nhông", "iguana"
+                "rÃ¹a", "turtle", "ráº¯n", "snake", "rá»“ng", "gecko",
+                "bÃ² sÃ¡t", "táº¯c kÃ¨", "ká»³ nhÃ´ng", "iguana"
         };
 
         for (String kw : dogKeywords) {
@@ -165,7 +176,7 @@ public class ExcelDataSeeder implements CommandLineRunner {
         for (String kw : catKeywords) {
             if (text.contains(kw)) return "CATS";
         }
-        // Gia cầm kiểm tra TRƯỚC chim cảnh vì "gà" nếu nằm trong birdKeywords sẽ sai
+        // Gia cáº§m kiá»ƒm tra TRÆ¯á»šC chim cáº£nh vÃ¬ "gÃ " náº¿u náº±m trong birdKeywords sáº½ sai
         for (String kw : poultryKeywords) {
             if (text.contains(kw)) return "POULTRY";
         }
@@ -184,6 +195,6 @@ public class ExcelDataSeeder implements CommandLineRunner {
         for (String kw : otherKeywords) {
             if (text.contains(kw)) return "OTHER";
         }
-        return "OTHER"; // Mặc định về OTHER nếu không nhận diện được
+        return "OTHER"; // Máº·c Ä‘á»‹nh vá» OTHER náº¿u khÃ´ng nháº­n diá»‡n Ä‘Æ°á»£c
     }
 }

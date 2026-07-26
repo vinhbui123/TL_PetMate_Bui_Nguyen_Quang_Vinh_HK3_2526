@@ -5,9 +5,9 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
 import com.petmate.server.dto.MessageResponse;
-import com.petmate.server.entity.FcmToken;
+import com.petmate.server.entity.DeviceToken;
 import com.petmate.server.entity.User;
-import com.petmate.server.repository.FcmTokenRepository;
+import com.petmate.server.repository.DeviceTokenRepository;
 import com.petmate.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,13 +22,13 @@ import java.util.stream.Collectors;
 public class FirebaseService {
 
     private final FirebaseMessaging firebaseMessaging;
-    private final FcmTokenRepository fcmTokenRepository;
+    private final DeviceTokenRepository deviceTokenRepository;
     private final UserRepository userRepository;
 
     public void sendChatMessageNotification(MessageResponse message, Long recipientId) {
         try {
-            List<String> deviceTokens = fcmTokenRepository.findByUserId(recipientId).stream()
-                    .map(FcmToken::getToken)
+            List<String> deviceTokens = deviceTokenRepository.findByUserId(recipientId).stream()
+                    .map(DeviceToken::getToken)
                     .collect(Collectors.toList());
 
             if (deviceTokens.isEmpty()) {
@@ -61,7 +61,7 @@ public class FirebaseService {
                     if (!response.getResponses().get(i).isSuccessful()) {
                         String failedToken = deviceTokens.get(i);
                         log.warn("Failed to send message to token: {}. Deleting it.", failedToken);
-                        fcmTokenRepository.deleteById(failedToken);
+                        deviceTokenRepository.deleteById(failedToken);
                     }
                 }
             }
@@ -72,8 +72,8 @@ public class FirebaseService {
 
     public void sendNotification(Long recipientId, String title, String body, java.util.Map<String, String> data) {
         try {
-            List<String> deviceTokens = fcmTokenRepository.findByUserId(recipientId).stream()
-                    .map(FcmToken::getToken)
+            List<String> deviceTokens = deviceTokenRepository.findByUserId(recipientId).stream()
+                    .map(DeviceToken::getToken)
                     .collect(Collectors.toList());
 
             if (deviceTokens.isEmpty()) {
@@ -100,7 +100,7 @@ public class FirebaseService {
                     if (!response.getResponses().get(i).isSuccessful()) {
                         String failedToken = deviceTokens.get(i);
                         log.warn("Failed to send notification to token: {}. Deleting it.", failedToken);
-                        fcmTokenRepository.deleteById(failedToken);
+                        deviceTokenRepository.deleteById(failedToken);
                     }
                 }
             }
@@ -111,8 +111,8 @@ public class FirebaseService {
 
     public void broadcastNotification(String title, String body) {
         try {
-            List<String> allTokens = fcmTokenRepository.findAll().stream()
-                    .map(FcmToken::getToken)
+            List<String> allTokens = deviceTokenRepository.findAll().stream()
+                    .map(DeviceToken::getToken)
                     .collect(Collectors.toList());
 
             log.info("[Broadcast] Found {} FCM tokens in database.", allTokens.size());
@@ -147,7 +147,7 @@ public class FirebaseService {
                         if (!response.getResponses().get(j).isSuccessful()) {
                             String failedToken = batchTokens.get(j);
                             log.warn("[Broadcast] Token failed: {} - Error: {}", failedToken, response.getResponses().get(j).getException().getMessage());
-                            fcmTokenRepository.deleteById(failedToken);
+                            deviceTokenRepository.deleteById(failedToken);
                         }
                     }
                 }

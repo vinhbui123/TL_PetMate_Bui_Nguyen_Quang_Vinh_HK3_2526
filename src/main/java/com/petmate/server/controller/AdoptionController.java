@@ -53,6 +53,16 @@ public class AdoptionController {
         }
     }
 
+    @GetMapping("/org/{orgId}")
+    public ResponseEntity<List<AdoptionResponse>> getOrgAdoptions(@AuthenticationPrincipal Jwt jwt, @PathVariable Long orgId) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            return ResponseEntity.ok(adoptionService.getOrgAdoptions(orgId, jwt));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
     @PutMapping("/{id}/status")
     public ResponseEntity<AdoptionResponse> updateApplicationStatus(
             @AuthenticationPrincipal Jwt jwt, 

@@ -29,7 +29,15 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         if (email != null) {
             Optional<User> userOptional = userRepository.findByEmail(email);
             if (userOptional.isPresent()) {
-                String role = userOptional.get().getRole().name();
+                User user = userOptional.get();
+                java.time.Instant issuedAt = jwt.getIssuedAt();
+                
+                // Reject if token was issued before tokensValidAfter
+                if (user.getTokensValidAfter() != null && issuedAt != null && issuedAt.isBefore(user.getTokensValidAfter())) {
+                    throw new org.springframework.security.authentication.BadCredentialsException("Token has been revoked due to password change or security event.");
+                }
+                
+                String role = user.getRole().name();
                 authorities = Collections.singleton(new SimpleGrantedAuthority("ROLE_" + role));
             }
         }

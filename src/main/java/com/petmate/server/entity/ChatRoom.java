@@ -8,7 +8,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chat_rooms")
+@Table(name = "chat_rooms", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"buyer_id", "seller_id", "pet_id"})
+}, indexes = {
+    @Index(name = "idx_chat_rooms_buyer_id", columnList = "buyer_id"),
+    @Index(name = "idx_chat_rooms_seller_id", columnList = "seller_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor

@@ -8,14 +8,14 @@ import lombok.Data;
 
 @Data
 public class RatingRequestDto {
-    @NotNull(message = "Score is required")
-    @Min(value = 1, message = "Score must be at least 1")
-    @Max(value = 5, message = "Score must be at most 5")
+    @NotNull(message = "Vui lòng chọn số sao đánh giá")
+    @Min(value = 1, message = "Số sao tối thiểu là 1")
+    @Max(value = 5, message = "Số sao tối đa là 5")
     private Double score;
 
-    @NotNull(message = "Pet ID is required")
+    @NotNull(message = "Thiếu ID thú cưng")
     private Long petId;
 
-    @Size(max = 500, message = "Comment must not exceed 500 characters")
+    @Size(max = 500, message = "Nhận xét không được vượt quá 500 ký tự")
     private String comment;
 }

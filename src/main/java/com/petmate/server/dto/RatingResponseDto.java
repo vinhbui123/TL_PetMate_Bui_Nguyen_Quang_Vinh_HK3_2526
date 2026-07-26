@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -20,7 +21,7 @@ public class RatingResponseDto {
     private String comment;
     private Long petId;
     private String petName;
-    private String petPrice;
+    private BigDecimal petPrice;
     private String petImageUrl;
     private LocalDateTime createdAt;
 }

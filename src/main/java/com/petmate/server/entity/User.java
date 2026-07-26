@@ -1,16 +1,25 @@
 package com.petmate.server.entity;
 
+import java.time.Instant;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.petmate.server.enums.RoleType;
+import com.petmate.server.enums.UserStatus;
+
 import jakarta.persistence.*;
 import lombok.*;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+    @Index(name = "idx_users_provider_id", columnList = "provider_id"),
+    @Index(name = "idx_users_role", columnList = "role"),
+    @Index(name = "idx_users_status", columnList = "status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -51,9 +60,10 @@ public class User {
     private Double latitude;
     private Double longitude;
 
-    @Column(length = 50)
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false, columnDefinition = "VARCHAR(50)")
     @Builder.Default
-    private String status = "PENDING";
+    private UserStatus status = UserStatus.PENDING;
 
     @Column(name = "average_rating")
     @Builder.Default
@@ -77,6 +87,9 @@ public class User {
 
     @Column(name = "last_active_at")
     private LocalDateTime lastActiveAt;
+
+    @Column(name = "tokens_valid_after")
+    private Instant tokensValidAfter;
 
     @PrePersist
     @PreUpdate

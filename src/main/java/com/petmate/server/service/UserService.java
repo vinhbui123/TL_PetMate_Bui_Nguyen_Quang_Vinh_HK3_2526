@@ -1,26 +1,34 @@
 package com.petmate.server.service;
 
+import java.time.Instant;
+
 import com.petmate.server.dto.RatingRequestDto;
 import com.petmate.server.dto.RatingResponseDto;
 import com.petmate.server.dto.SellerRatingSummaryDto;
 import com.petmate.server.dto.UserProfileDto;
-import com.petmate.server.entity.FcmToken;
+import com.petmate.server.entity.DeviceToken;
 import com.petmate.server.entity.Pet;
 import com.petmate.server.entity.User;
 import com.petmate.server.entity.UserBlock;
 import com.petmate.server.entity.UserFollow;
 import com.petmate.server.entity.UserRating;
+import com.petmate.server.entity.OrganizationMember;
 import com.petmate.server.enums.AdStatus;
 import com.petmate.server.enums.AdoptionStatus;
 import com.petmate.server.enums.RoleType;
+import com.petmate.server.enums.UserStatus;
+import com.petmate.server.enums.OrgMemberRole;
 import com.petmate.server.repository.AdoptionApplicationRepository;
-import com.petmate.server.repository.FcmTokenRepository;
+import com.petmate.server.repository.DeviceTokenRepository;
+import com.petmate.server.repository.OrganizationMemberRepository;
 import com.petmate.server.repository.PetRepository;
 import com.petmate.server.repository.UserBlockRepository;
 import com.petmate.server.repository.UserFollowRepository;
 import com.petmate.server.repository.UserRatingRepository;
 import com.petmate.server.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -28,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,12 +52,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
-    private final FcmTokenRepository fcmTokenRepository;
+    private final DeviceTokenRepository deviceTokenRepository;
     private final PetRepository petRepository;
     private final UserBlockRepository userBlockRepository;
     private final UserFollowRepository userFollowRepository;
     private final UserRatingRepository userRatingRepository;
     private final AdoptionApplicationRepository adoptionApplicationRepository;
+    private final OrganizationMemberRepository memberRepository;
 
     public Optional<User> findCurrentUser(Jwt jwt) {
         String uid = jwt.getSubject();
@@ -60,7 +70,23 @@ public class UserService {
 
     public User getCurrentUserOrThrow(Jwt jwt) {
         return findCurrentUser(jwt)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng"));
+    }
+
+    public User getCurrentUserAndUpdateActivity(Jwt jwt) {
+        User user = getCurrentUserOrThrow(jwt);
+        touchLastActive(user);
+        return userRepository.save(user);
+    }
+
+    public void revokeTokens(Jwt jwt) {
+        User user = getCurrentUserOrThrow(jwt);
+        user.setTokensValidAfter(Instant.now());
+        userRepository.save(user);
+    }
+
+    private void touchLastActive(User user) {
+        user.setLastActiveAt(LocalDateTime.now());
     }
 
     private String extractValidString(String... values) {
@@ -91,7 +117,7 @@ public class UserService {
 
         boolean emailVerified = Boolean.TRUE.equals(jwt.getClaimAsBoolean("email_verified"));
         boolean isSocialLogin = provider != null && !provider.equals("password");
-        String currentStatus = (emailVerified || isSocialLogin) ? "ACTIVED" : "PENDING";
+        UserStatus currentStatus = (emailVerified || isSocialLogin) ? UserStatus.ACTIVE : UserStatus.PENDING;
 
         User user = userRepository.findByProviderId(uid)
                 .or(() -> userRepository.findByEmail(email))
@@ -123,14 +149,15 @@ public class UserService {
             Optional.ofNullable(avatarUrl).ifPresent(user::setAvatarUrl);
         }
 
-        if (user.getStatus() == null || "PENDING".equals(user.getStatus())) {
+        if (user.getStatus() == null || user.getStatus() == UserStatus.PENDING) {
             user.setStatus(currentStatus);
         }
 
-        if ("DELETED".equals(user.getStatus()) || "BANNED".equals(user.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
+        if (user.getStatus() == UserStatus.DELETED || user.getStatus() == UserStatus.BANNED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "TÃ i khoáº£n Ä‘Ã£ bá»‹ khÃ³a");
         }
 
+        touchLastActive(user);
         return userRepository.save(user);
     }
 
@@ -147,9 +174,10 @@ public class UserService {
         User user = getCurrentUserOrThrow(jwt);
         try {
             user.setAvatarUrl(cloudinaryService.uploadImage(file));
+            touchLastActive(user);
             return userRepository.save(user);
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error uploading avatar", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lá»—i khi táº£i lÃªn áº£nh Ä‘áº¡i diá»‡n", e);
         }
     }
 
@@ -159,39 +187,45 @@ public class UserService {
                 .flatMap(lat -> Optional.ofNullable(body.get("longitude")).map(lng -> {
                     user.setLatitude(lat);
                     user.setLongitude(lng);
+                    touchLastActive(user);
                     return userRepository.save(user);
                 }))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing latitude or longitude"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiáº¿u thÃ´ng tin tá»a Ä‘á»™ (vÄ© Ä‘á»™/kinh Ä‘á»™)"));
     }
 
     public User requestRescueOrg(Jwt jwt) {
         User user = getCurrentUserOrThrow(jwt);
+
         return Optional.of(user)
                 .filter(u -> u.getRole() == RoleType.MEMBER)
                 .map(u -> {
                     u.setRole(RoleType.PENDING_RESCUE);
+                    touchLastActive(u);
                     return userRepository.save(u);
                 })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not a MEMBER"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "NgÆ°á»i dÃ¹ng khÃ´ng pháº£i lÃ  thÃ nh viÃªn"));
     }
 
     public void registerFcmToken(Jwt jwt, Map<String, String> body) {
         User user = getCurrentUserOrThrow(jwt);
         Optional.ofNullable(body.get("token"))
                 .filter(token -> !token.trim().isEmpty())
-                .map(token -> FcmToken.builder().token(token).user(user).build())
-                .ifPresentOrElse(fcmTokenRepository::save, 
-                        () -> { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token is missing"); });
+                .map(token -> DeviceToken.builder().token(token).user(user).build())
+                .ifPresentOrElse(deviceTokenRepository::save, 
+                        () -> { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiáº¿u token xÃ¡c thá»±c"); });
+        touchLastActive(user);
+        userRepository.save(user);
     }
 
     public void removeFcmToken(Jwt jwt, String token) {
         getCurrentUserOrThrow(jwt);
-        fcmTokenRepository.findById(token).ifPresent(fcmTokenRepository::delete);
+        deviceTokenRepository.findById(token).ifPresent(deviceTokenRepository::delete);
     }
 
     public void deleteAccount(Jwt jwt) {
         User user = getCurrentUserOrThrow(jwt);
-        user.setStatus("DELETED");
+        user.setStatus(UserStatus.DELETED);
+        touchLastActive(user);
         userRepository.save(user);
         
         List<Pet> userPets = petRepository.findByUserId(user.getId());
@@ -202,20 +236,26 @@ public class UserService {
     public void blockUser(Jwt jwt, Long blockedId) {
         User blocker = getCurrentUserOrThrow(jwt);
         if (blocker.getId().equals(blockedId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot block yourself");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "KhÃ´ng thá»ƒ tá»± cháº·n chÃ­nh mÃ¬nh");
         }
         User blockedUser = userRepository.findById(blockedId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target user not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng Ä‘Ã­ch"));
         
         if (!userBlockRepository.existsByBlockerIdAndBlockedId(blocker.getId(), blockedId)) {
             userBlockRepository.save(UserBlock.builder().blocker(blocker).blocked(blockedUser).build());
+            touchLastActive(blocker);
+            userRepository.save(blocker);
         }
     }
 
     public void unblockUser(Jwt jwt, Long blockedId) {
         User blocker = getCurrentUserOrThrow(jwt);
         userBlockRepository.findByBlockerIdAndBlockedId(blocker.getId(), blockedId)
-                .ifPresent(userBlockRepository::delete);
+                .ifPresent(block -> {
+                    userBlockRepository.delete(block);
+                    touchLastActive(blocker);
+                    userRepository.save(blocker);
+                });
     }
 
     public List<Long> getBlockedUsers(Jwt jwt) {
@@ -239,20 +279,26 @@ public class UserService {
     public void followUser(Jwt jwt, Long followedId) {
         User follower = getCurrentUserOrThrow(jwt);
         if (follower.getId().equals(followedId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot follow yourself");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "KhÃ´ng thá»ƒ tá»± theo dÃµi chÃ­nh mÃ¬nh");
         }
         User followedUser = userRepository.findById(followedId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target user not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng Ä‘Ã­ch"));
                 
         if (!userFollowRepository.existsByFollowerIdAndFollowedId(follower.getId(), followedId)) {
             userFollowRepository.save(UserFollow.builder().follower(follower).followed(followedUser).build());
+            touchLastActive(follower);
+            userRepository.save(follower);
         }
     }
 
     public void unfollowUser(Jwt jwt, Long followedId) {
         User follower = getCurrentUserOrThrow(jwt);
         userFollowRepository.findByFollowerIdAndFollowedId(follower.getId(), followedId)
-                .ifPresent(userFollowRepository::delete);
+                .ifPresent(follow -> {
+                    userFollowRepository.delete(follow);
+                    touchLastActive(follower);
+                    userRepository.save(follower);
+                });
     }
 
     public boolean checkFollowStatus(Jwt jwt, Long followedId) {
@@ -262,7 +308,7 @@ public class UserService {
 
     public Map<String, Long> getUserFollowStats(Long userId) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng"));
         Map<String, Long> stats = new HashMap<>();
         stats.put("followers", userFollowRepository.countByFollowedId(userId));
         stats.put("following", userFollowRepository.countByFollowerId(userId));
@@ -279,29 +325,31 @@ public class UserService {
 
     public RatingResponseDto rateUser(Jwt jwt, Long userId, RatingRequestDto dto) {
         if (dto.getScore() == null || dto.getScore() < 1 || dto.getScore() > 5) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Score must be between 1 and 5");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Äiá»ƒm Ä‘Ã¡nh giÃ¡ pháº£i tá»« 1 Ä‘áº¿n 5");
         }
 
         User rater = getCurrentUserOrThrow(jwt);
+        touchLastActive(rater);
+        userRepository.save(rater);
         User ratedUser = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rated user not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng Ä‘Æ°á»£c Ä‘Ã¡nh giÃ¡"));
         
         if (rater.getId().equals(ratedUser.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot rate yourself");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "KhÃ´ng thá»ƒ tá»± Ä‘Ã¡nh giÃ¡ chÃ­nh mÃ¬nh");
         }
 
         Pet pet = petRepository.findById(dto.getPetId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y thÃº cÆ°ng"));
 
         if (!pet.getUser().getId().equals(ratedUser.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pet does not belong to the rated user");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ThÃº cÆ°ng khÃ´ng thuá»™c vá» ngÆ°á»i dÃ¹ng Ä‘Æ°á»£c Ä‘Ã¡nh giÃ¡");
         }
 
-        // Kiểm tra: chỉ người mua/nhận nuôi đã được duyệt (APPROVED) mới có thể đánh giá người bán
+        // Kiá»ƒm tra: chá»‰ ngÆ°á»i mua/nháº­n nuÃ´i Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t (APPROVED) má»›i cÃ³ thá»ƒ Ä‘Ã¡nh giÃ¡ ngÆ°á»i bÃ¡n
         boolean hasApprovedAdoption = adoptionApplicationRepository
                 .existsByApplicantIdAndPetIdAndStatus(rater.getId(), pet.getId(), AdoptionStatus.APPROVED);
         if (!hasApprovedAdoption) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể đánh giá sau khi nhận nuôi thú cưng này thành công");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Báº¡n chá»‰ cÃ³ thá»ƒ Ä‘Ã¡nh giÃ¡ sau khi nháº­n nuÃ´i thÃº cÆ°ng nÃ y thÃ nh cÃ´ng");
         }
 
         UserRating rating = userRatingRepository.findByRaterIdAndRatedUserId(rater.getId(), ratedUser.getId())
@@ -344,7 +392,7 @@ public class UserService {
 
     public SellerRatingSummaryDto getSellerRatingSummary(Jwt jwt, Long sellerId) {
         User seller = userRepository.findById(sellerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Seller not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i bÃ¡n"));
         
         List<Object[]> distributionResult = userRatingRepository.countByRatedUserIdGroupByScore(sellerId);
         Map<Integer, Integer> distribution = new HashMap<>();
@@ -398,7 +446,7 @@ public class UserService {
 
     public List<RatingResponseDto> getSellerReviews(Long sellerId) {
         if (!userRepository.existsById(sellerId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Seller not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i bÃ¡n");
         }
         return userRatingRepository.findByRatedUserIdOrderByCreatedAtDesc(sellerId)
                 .stream()
@@ -414,10 +462,10 @@ public class UserService {
     public void deleteRating(Jwt jwt, Long ratingId) {
         User user = getCurrentUserOrThrow(jwt);
         UserRating rating = userRatingRepository.findById(ratingId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rating not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y Ä‘Ã¡nh giÃ¡"));
                 
         if (!rating.getRater().getId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own ratings");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Báº¡n chá»‰ cÃ³ thá»ƒ xÃ³a Ä‘Ã¡nh giÃ¡ cá»§a chÃ­nh mÃ¬nh");
         }
         
         Long ratedUserId = rating.getRatedUser().getId();
@@ -434,3 +482,4 @@ public class UserService {
         }
     }
 }
+

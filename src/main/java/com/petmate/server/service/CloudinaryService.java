@@ -24,4 +24,13 @@ public class CloudinaryService {
         ));
         return uploadResult.get("secure_url").toString();
     }
+
+    public String uploadDocument(MultipartFile file) throws IOException {
+        String publicId = "petmate_orgdoc_" + java.util.UUID.randomUUID();
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                "public_id", publicId,
+                "folder", "petmate_org_docs"
+        ));
+        return uploadResult.get("secure_url").toString();
+    }
 }

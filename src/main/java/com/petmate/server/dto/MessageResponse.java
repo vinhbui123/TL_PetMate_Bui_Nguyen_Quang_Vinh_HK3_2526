@@ -1,5 +1,6 @@
 package com.petmate.server.dto;
 
+import com.petmate.server.enums.MessageStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,5 +17,5 @@ public class MessageResponse {
     private Long senderId;
     private String content;
     private LocalDateTime createdAt;
-    private String status;
+    private MessageStatus status;
 }

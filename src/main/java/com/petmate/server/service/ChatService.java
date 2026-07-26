@@ -5,6 +5,7 @@ import com.petmate.server.entity.ChatMessage;
 import com.petmate.server.entity.ChatRoom;
 import com.petmate.server.entity.Pet;
 import com.petmate.server.entity.User;
+import com.petmate.server.enums.MessageStatus;
 import com.petmate.server.repository.ChatMessageRepository;
 import com.petmate.server.repository.ChatRoomRepository;
 import com.petmate.server.repository.PetRepository;
@@ -36,8 +37,8 @@ public class ChatService {
             room = existingRoom.get();
         } else {
             User buyer = userRepository.findById(buyerId).orElseThrow(() -> new RuntimeException("Buyer not found"));
-            User seller = userRepository.findById(sellerId).orElseThrow(() -> new RuntimeException("Seller not found"));
-            Pet pet = petRepository.findById(petId).orElseThrow(() -> new RuntimeException("Pet not found"));
+            User seller = userRepository.findById(sellerId).orElseThrow(() -> new RuntimeException("KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i bÃ¡n"));
+            Pet pet = petRepository.findById(petId).orElseThrow(() -> new RuntimeException("KhÃ´ng tÃ¬m tháº¥y thÃº cÆ°ng"));
 
             room = ChatRoom.builder()
                     .buyer(buyer)
@@ -68,8 +69,8 @@ public class ChatService {
         List<ChatMessage> messages = chatMessageRepository.findByRoomIdOrderByCreatedAtAsc(roomId);
         boolean updated = false;
         for (ChatMessage msg : messages) {
-            if (!msg.getSender().getId().equals(currentUserId) && !"READ".equals(msg.getStatus())) {
-                msg.setStatus("READ");
+            if (!msg.getSender().getId().equals(currentUserId) && msg.getStatus() != MessageStatus.READ) {
+                msg.setStatus(MessageStatus.READ);
                 updated = true;
             }
         }
@@ -110,7 +111,7 @@ public class ChatService {
         ChatMessage lastMsg = chatMessageRepository.findTopByRoomIdOrderByCreatedAtDesc(room.getId());
         MessageResponse lastMsgResponse = lastMsg != null ? mapToMessageResponse(lastMsg) : null;
         
-        int unreadCount = chatMessageRepository.countByRoomIdAndSenderIdNotAndStatusNot(room.getId(), currentUserId, "READ");
+        int unreadCount = chatMessageRepository.countByRoomIdAndSenderIdNotAndStatusNot(room.getId(), currentUserId, MessageStatus.READ);
         
         return ChatRoomResponse.builder()
                 .id(room.getId())
@@ -133,3 +134,4 @@ public class ChatService {
                 .build();
     }
 }
+

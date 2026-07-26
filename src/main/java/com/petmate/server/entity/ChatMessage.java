@@ -1,5 +1,7 @@
 package com.petmate.server.entity;
 
+import com.petmate.server.converter.MessageStatusConverter;
+import com.petmate.server.enums.MessageStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -7,7 +9,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chat_messages")
+@Table(name = "chat_messages", indexes = {
+    @Index(name = "idx_chat_messages_room_id", columnList = "room_id"),
+    @Index(name = "idx_chat_messages_room_created", columnList = "room_id, created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -34,7 +39,8 @@ public class ChatMessage {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(length = 20)
+    @Column(name = "status", length = 20)
+    @Convert(converter = MessageStatusConverter.class)
     @Builder.Default
-    private String status = "SENT"; // SENT, DELIVERED, READ
+    private MessageStatus status = MessageStatus.SENT;
 }

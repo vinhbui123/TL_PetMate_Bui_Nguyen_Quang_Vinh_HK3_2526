@@ -1,0 +1,11 @@
+ALTER TABLE pets
+    ADD COLUMN listing_type VARCHAR(20) NOT NULL DEFAULT 'SALE',
+    ADD COLUMN is_vaccinated BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN is_neutered BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE pets
+    SET price = REPLACE(REPLACE(REPLACE(REPLACE(price, '.', ''), ' ', ''), '?', ''), UNHEX('C491'), '')
+    WHERE price IS NOT NULL AND price <> '';
+
+ALTER TABLE pets
+    MODIFY COLUMN price DECIMAL(12,0) NULL;

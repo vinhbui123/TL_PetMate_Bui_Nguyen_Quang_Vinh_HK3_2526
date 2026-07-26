@@ -40,10 +40,10 @@ public class InteractionService {
     public SaveStatusResponse toggleSave(Long petId, Jwt jwt) {
         String uid = jwt.getSubject();
 
+        User user = userService.getCurrentUserAndUpdateActivity(jwt);
+
         Pet pet = petRepository.findById(petId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
-
-        User user = userService.getCurrentUserOrThrow(jwt);
 
         boolean isCurrentlySaved = savedPetRepository.existsByPetIdAndUser_ProviderId(petId, uid);
         
@@ -71,10 +71,10 @@ public class InteractionService {
     public LikeStatusResponse toggleLike(Long petId, Jwt jwt) {
         String uid = jwt.getSubject();
 
+        User user = userService.getCurrentUserAndUpdateActivity(jwt);
+
         Pet pet = petRepository.findById(petId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
-
-        User user = userService.getCurrentUserOrThrow(jwt);
 
         boolean isCurrentlyLiked = petLikeRepository.existsByPetIdAndUser_ProviderId(petId, uid);
         

@@ -33,7 +33,7 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         new ObjectMapper().writeValue(response.getWriter(), Map.of(
                 "error", "Unauthorized",
-                "message", "Token không hợp lệ hoặc đã hết hạn."
+                "message", "Token khÃ´ng há»£p lá»‡ hoáº·c Ä‘Ã£ háº¿t háº¡n."
         ));
     }
 

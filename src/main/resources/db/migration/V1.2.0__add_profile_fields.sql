@@ -1,4 +1,4 @@
-ALTER TABLE users
+    ALTER TABLE users
 ADD COLUMN phone VARCHAR(20),
 ADD COLUMN address VARCHAR(255),
 ADD COLUMN avatar_url VARCHAR(255);

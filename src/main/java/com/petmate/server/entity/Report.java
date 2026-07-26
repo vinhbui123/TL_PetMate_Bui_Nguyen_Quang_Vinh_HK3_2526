@@ -1,6 +1,7 @@
 package com.petmate.server.entity;
 
 import com.petmate.server.enums.ReportStatus;
+import com.petmate.server.enums.ReportType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,7 +11,10 @@ import java.sql.Types;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reports")
+@Table(name = "reports", indexes = {
+    @Index(name = "idx_reports_reporter_id", columnList = "reporter_id"),
+    @Index(name = "idx_reports_status", columnList = "status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,6 +25,11 @@ public class Report {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(Types.VARCHAR)
+    @Column(name = "report_type", length = 20)
+    private ReportType reportType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reporter_id", nullable = false)
@@ -37,6 +46,10 @@ public class Report {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reported_message_id")
     private ChatMessage reportedMessage;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reported_org_id")
+    private OrganizationProfile reportedOrg;
 
     @Column(nullable = false)
     private String reason;

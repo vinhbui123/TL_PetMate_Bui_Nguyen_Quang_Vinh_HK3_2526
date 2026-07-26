@@ -1,6 +1,8 @@
 package com.petmate.server.controller;
 
 import com.petmate.server.entity.User;
+import com.petmate.server.entity.SystemLog;
+import com.petmate.server.dto.SystemStatsDto;
 import com.petmate.server.enums.RoleType;
 import com.petmate.server.service.AdminService;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,7 @@ public class AdminController {
     public ResponseEntity<List<User>> getPendingRescueOrgs(@AuthenticationPrincipal Jwt jwt) {
         try {
             return ResponseEntity.ok(adminService.getPendingRescueOrgs(jwt));
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        } catch (ResponseStatusException e) { throw e; }
     }
 
     @PutMapping("/users/{id}/approve-rescue")
@@ -36,9 +36,7 @@ public class AdminController {
             @RequestParam boolean approve) {
         try {
             return ResponseEntity.ok(adminService.approveRescueOrg(jwt, id, approve));
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        } catch (ResponseStatusException e) { throw e; }
     }
 
     @PostMapping("/broadcast")
@@ -48,18 +46,14 @@ public class AdminController {
         try {
             adminService.sendBroadcast(jwt, payload);
             return ResponseEntity.ok().build();
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        } catch (ResponseStatusException e) { throw e; }
     }
 
     @GetMapping("/users")
     public ResponseEntity<List<User>> getAllUsers(@AuthenticationPrincipal Jwt jwt) {
         try {
             return ResponseEntity.ok(adminService.getAllUsers(jwt));
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        } catch (ResponseStatusException e) { throw e; }
     }
 
     @PutMapping("/users/{id}/status")
@@ -69,9 +63,7 @@ public class AdminController {
             @RequestParam String status) {
         try {
             return ResponseEntity.ok(adminService.updateUserStatus(jwt, id, status));
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        } catch (ResponseStatusException e) { throw e; }
     }
 
     @PutMapping("/users/{id}/role")
@@ -81,8 +73,21 @@ public class AdminController {
             @RequestParam RoleType role) {
         try {
             return ResponseEntity.ok(adminService.updateUserRole(jwt, id, role));
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        } catch (ResponseStatusException e) { throw e; }
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<SystemStatsDto> getSystemStats(@AuthenticationPrincipal Jwt jwt) {
+        try {
+            return ResponseEntity.ok(adminService.getSystemStats(jwt));
+        } catch (ResponseStatusException e) { throw e; }
+    }
+
+    @GetMapping("/logs")
+    public ResponseEntity<List<SystemLog>> getSystemLogs(@AuthenticationPrincipal Jwt jwt) {
+        try {
+            return ResponseEntity.ok(adminService.getSystemLogs(jwt));
+        } catch (ResponseStatusException e) { throw e; }
     }
 }
+

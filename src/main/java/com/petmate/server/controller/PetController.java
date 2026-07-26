@@ -51,6 +51,16 @@ public class PetController {
         }
     }
 
+    @GetMapping("/org/{orgId}")
+    public ResponseEntity<List<Pet>> getOrgPets(@AuthenticationPrincipal Jwt jwt, @PathVariable Long orgId) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            return ResponseEntity.ok(petService.getPetsByOrganizationId(orgId, jwt));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
     @GetMapping("/saved")
     public ResponseEntity<List<Pet>> getSavedPets(@AuthenticationPrincipal Jwt jwt) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -62,7 +72,7 @@ public class PetController {
     }
 
     @PostMapping
-    public ResponseEntity<Pet> createPet(@AuthenticationPrincipal Jwt jwt, @RequestBody PetRequestDto dto) {
+    public ResponseEntity<Pet> createPet(@AuthenticationPrincipal Jwt jwt, @jakarta.validation.Valid @RequestBody PetRequestDto dto) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
             return ResponseEntity.ok(petService.createPet(jwt, dto));
@@ -102,7 +112,7 @@ public class PetController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Pet> updatePet(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @RequestBody PetRequestDto dto) {
+    public ResponseEntity<Pet> updatePet(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @jakarta.validation.Valid @RequestBody PetRequestDto dto) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
             return ResponseEntity.ok(petService.updatePet(jwt, id, dto));

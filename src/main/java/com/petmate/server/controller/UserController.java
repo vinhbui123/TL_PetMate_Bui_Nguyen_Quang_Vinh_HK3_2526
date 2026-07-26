@@ -41,13 +41,26 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        return userService.findCurrentUser(jwt)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        try {
+            return ResponseEntity.ok(userService.getCurrentUserAndUpdateActivity(jwt));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
+    @PostMapping("/revoke-tokens")
+    public ResponseEntity<Void> revokeTokens(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            userService.revokeTokens(jwt);
+            return ResponseEntity.ok().build();
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
     }
 
     @PutMapping("/me")
-    public ResponseEntity<User> updateProfile(@AuthenticationPrincipal Jwt jwt, @RequestBody UserProfileDto dto) {
+    public ResponseEntity<User> updateProfile(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UserProfileDto dto) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
             return ResponseEntity.ok(userService.updateProfile(jwt, dto));

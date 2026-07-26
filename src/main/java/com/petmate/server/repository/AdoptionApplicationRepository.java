@@ -14,4 +14,7 @@ public interface AdoptionApplicationRepository extends JpaRepository<AdoptionApp
     List<AdoptionApplication> findByPet_User_ProviderId(String ownerProviderId);
     boolean existsByApplicantIdAndPet_UserIdAndStatus(Long applicantId, Long petOwnerId, AdoptionStatus status);
     boolean existsByApplicantIdAndPetIdAndStatus(Long applicantId, Long petId, AdoptionStatus status);
+    List<AdoptionApplication> findByPet_Organization_Id(Long orgId);
+    long countByStatus(AdoptionStatus status);
+    long countByPet_Organization_IdAndStatus(Long orgId, AdoptionStatus status);
 }

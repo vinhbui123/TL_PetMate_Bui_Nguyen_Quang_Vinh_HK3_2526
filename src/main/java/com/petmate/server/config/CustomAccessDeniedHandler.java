@@ -35,7 +35,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         new ObjectMapper().writeValue(response.getWriter(), Map.of(
                 "error", "Forbidden",
-                "message", "Bạn không có quyền thực hiện hành động này."
+                "message", "Báº¡n khÃ´ng cÃ³ quyá»n thá»±c hiá»‡n hÃ nh Ä‘á»™ng nÃ y."
         ));
     }
 }

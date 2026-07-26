@@ -7,13 +7,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "fcm_tokens")
+@Table(name = "fcm_tokens", indexes = {
+    @Index(name = "idx_fcm_tokens_user_id", columnList = "user_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FcmToken {
+public class DeviceToken {
 
     @Id
     @Column(length = 255)
