@@ -45,6 +45,9 @@ fun PetMarketScreen(
     onBlockedUsersClick: () -> Unit = {},
     onPostHistoryClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
+    onOrgProfileClick: () -> Unit = {},
+    onOrgDashboardClick: () -> Unit = {},
+    onOrgRegistrationClick: () -> Unit = {},
     userLatitude: Double? = null,
     userLongitude: Double? = null,
     currentUser: User? = null,
@@ -102,9 +105,10 @@ fun PetMarketScreen(
         }
     }
 
-    Scaffold(
-        containerColor = BackgroundBeige
-    ) { innerPadding ->
+    Surface(
+        color = BackgroundBeige,
+        modifier = Modifier.fillMaxSize()
+    ) {
         @OptIn(ExperimentalMaterial3Api::class)
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -114,7 +118,6 @@ fun PetMarketScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Market Header
                 AppHeader(
                     currentUser = currentUser,
                     onLogoutClick = onLogoutClick,
@@ -122,7 +125,10 @@ fun PetMarketScreen(
                     onAdminDashboardClick = onAdminDashboardClick,
                     onBlockedUsersClick = onBlockedUsersClick,
                     onPostHistoryClick = onPostHistoryClick,
-                    onNotificationsClick = onNotificationsClick
+                    onNotificationsClick = onNotificationsClick,
+                    onOrgProfileClick = onOrgProfileClick,
+                    onOrgDashboardClick = onOrgDashboardClick,
+                    onOrgRegistrationClick = onOrgRegistrationClick
                 )
             
             // Search Bar
@@ -149,8 +155,8 @@ fun PetMarketScreen(
                         val displayedPets = remember(apiPets, searchQuery, filterMaxPrice, filterMaxDistance, filterMinRating, filterArea, userLatitude, userLongitude) {
                             apiPets.filter {
                                 val matchesSearch = searchQuery.isEmpty() ||
-                                        it.name.contains(searchQuery, ignoreCase = true) ||
-                                        it.breed.contains(searchQuery, ignoreCase = true)
+                                        (it.name?.contains(searchQuery, ignoreCase = true) == true) ||
+                                        (it.breed?.contains(searchQuery, ignoreCase = true) == true)
                                 
                                 val numericPrice = it.price?.replace(Regex("[^0-9]"), "")?.toLongOrNull() ?: 0L
                                 val priceInMillion = numericPrice / 1_000_000f

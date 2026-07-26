@@ -260,7 +260,7 @@ fun PetSummaryMiniCard(pet: Pet) {
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text("Đăng ký nhận nuôi", style = MaterialTheme.typography.labelMedium, color = IconGray)
-                Text(pet.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextGray)
+                Text(pet.name ?: "Chưa có tên", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextGray)
             }
         }
     }

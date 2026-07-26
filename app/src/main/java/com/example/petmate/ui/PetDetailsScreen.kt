@@ -40,6 +40,7 @@ import com.example.petmate.network.NetworkClient.apiService
 import com.example.petmate.ui.theme.*
 import com.example.petmate.util.LocationHelper
 import com.example.petmate.util.TimeHelper
+import com.example.petmate.ui.components.MarketItemCard
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,35 +50,46 @@ import androidx.compose.ui.graphics.vector.ImageVector
 fun PetDetailsScreen(
     initialPet: Pet,
     onBackClick: () -> Unit,
-    onViewSellerProfile: (com.example.petmate.model.User) -> Unit = {},
+    onViewSellerProfile: (com.example.petmate.model.User, Boolean) -> Unit = { _, _ -> },
     onChatClick: (com.example.petmate.model.User) -> Unit = {},
     onAdoptClick: () -> Unit = {},
     onEditClick: (Pet) -> Unit = {},
+    onPetClick: (Pet) -> Unit = {},
     userLatitude: Double? = null,
     userLongitude: Double? = null,
     currentUserId: Long? = null
 ) {
-    var pet by remember { mutableStateOf(initialPet) }
+    var pet by remember(initialPet.id) { mutableStateOf(initialPet) }
     
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPetReportDialog by remember { mutableStateOf(false) }
     var showCancelAdoptionDialog by remember { mutableStateOf(false) }
     var showStatusDialog by remember { mutableStateOf(false) }
-    var currentPetStatus by remember { mutableStateOf(pet.status ?: "AVAILABLE") }
+    var currentPetStatus by remember(initialPet.id) { mutableStateOf(initialPet.status ?: "AVAILABLE") }
     
-    var adoptionStatus by remember { mutableStateOf<String?>(null) }
-    var adoptionId by remember { mutableStateOf<Long?>(null) }
-    var isCheckingAdoption by remember { mutableStateOf(true) }
+    var adoptionStatus by remember(initialPet.id) { mutableStateOf<String?>(null) }
+    var adoptionId by remember(initialPet.id) { mutableStateOf<Long?>(null) }
+    var isCheckingAdoption by remember(initialPet.id) { mutableStateOf(true) }
 
-    var isSaved by remember { mutableStateOf(false) }
-    var isLiked by remember { mutableStateOf(false) }
-    var likeCount by remember { mutableIntStateOf(pet.likeCount) }
+    var isSaved by remember(initialPet.id) { mutableStateOf(false) }
+    var isLiked by remember(initialPet.id) { mutableStateOf(false) }
+    var likeCount by remember(initialPet.id) { mutableIntStateOf(initialPet.likeCount) }
 
-    var ratingSummary by remember { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
+    var ratingSummary by remember(initialPet.id) { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
     var showRatingDialog by remember { mutableStateOf(false) }
+    
+    var sellerOrgProfile by remember(initialPet.id) { mutableStateOf<com.example.petmate.model.OrganizationProfileDto?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LaunchedEffect(pet.organization, pet.user?.id) {
+        if (pet.organization != null) {
+            sellerOrgProfile = pet.organization
+        } else {
+            sellerOrgProfile = null
+        }
+    }
 
     if (showRatingDialog && pet.user?.id != null) {
         com.example.petmate.ui.components.RatingDialog(
@@ -96,7 +108,13 @@ fun PetDetailsScreen(
                         if (e.code() == 403) {
                             Toast.makeText(context, "Bạn chỉ có thể đánh giá sau khi nhận nuôi thú cưng thành công", Toast.LENGTH_LONG).show()
                         } else {
-                            Toast.makeText(context, "Có lỗi xảy ra khi đánh giá", Toast.LENGTH_SHORT).show()
+                            val errorBody = e.response()?.errorBody()?.string()
+                            val errorMessage = try {
+                                org.json.JSONObject(errorBody ?: "").getString("message")
+                            } catch (ex: Exception) {
+                                "Có lỗi xảy ra khi đánh giá"
+                            }
+                            Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
                         Toast.makeText(context, "Lỗi mạng", Toast.LENGTH_SHORT).show()
@@ -106,10 +124,10 @@ fun PetDetailsScreen(
         )
     }
 
-    LaunchedEffect(pet.id, currentUserId) {
+    LaunchedEffect(initialPet.id, currentUserId) {
         // Fetch latest pet details
         try {
-            val updatedPet = apiService.getPetById(pet.id)
+            val updatedPet = apiService.getPetById(initialPet.id)
             pet = updatedPet
             currentPetStatus = updatedPet.status ?: "AVAILABLE"
         } catch (e: Exception) {
@@ -480,14 +498,14 @@ fun PetDetailsScreen(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = pet.name,
+                    text = pet.name ?: "Chưa có tên",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Medium,
                     color = Color.Black,
                     lineHeight = 28.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                val priceText = pet.price?.takeIf { it.isNotBlank() && it != "Miễn phí" } ?: "Miễn phí"
+                val priceText = pet.price?.takeIf { it.isNotBlank() && it != "Miễn phí" && it != "0" && it != "0.0" } ?: "Miễn phí"
                 Text(
                     text = priceText,
                     style = MaterialTheme.typography.headlineSmall,
@@ -527,7 +545,16 @@ fun PetDetailsScreen(
             Spacer(modifier = Modifier.height(8.dp)) // Divider gap
             
             // Seller Profile Section (Cho Tot Style)
-            val seller = pet.user
+            val baseSeller = pet.user
+            val seller = if (sellerOrgProfile != null && baseSeller != null) {
+                baseSeller.copy(
+                    fullName = sellerOrgProfile?.name ?: baseSeller.fullName,
+                    avatarUrl = sellerOrgProfile?.logoUrl ?: baseSeller.avatarUrl,
+                    address = sellerOrgProfile?.address ?: baseSeller.address
+                )
+            } else {
+                baseSeller
+            }
             com.example.petmate.ui.components.SellerInfoCard(
                 seller = seller,
                 ratingSummary = ratingSummary,
@@ -545,7 +572,7 @@ fun PetDetailsScreen(
                             latitude = s.latitude,
                             longitude = s.longitude
                         )
-                        onViewSellerProfile(user)
+                        onViewSellerProfile(user, sellerOrgProfile != null)
                     }
                 },
                 onWriteReview = { showRatingDialog = true }
@@ -609,10 +636,10 @@ fun PetDetailsScreen(
             }
 
             // Other pets by this seller
-            var sellerPets by remember { mutableStateOf<List<Pet>>(emptyList()) }
-            var isLoadingPets by remember { mutableStateOf(false) }
+            var sellerPets by remember(initialPet.id) { mutableStateOf<List<Pet>>(emptyList()) }
+            var isLoadingPets by remember(initialPet.id) { mutableStateOf(false) }
             val sellerId = pet.user?.id
-            LaunchedEffect(sellerId) {
+            LaunchedEffect(sellerId, initialPet.id) {
                 if (sellerId != null) {
                     isLoadingPets = true
                     try {
@@ -638,7 +665,7 @@ fun PetDetailsScreen(
                         .padding(bottom = 16.dp)
                 ) {
                     Text(
-                        text = "Tin đăng khác của người bán",
+                        text = if (pet.user?.role == "RESCUE_ORG") "Tin đăng khác của Tổ chức" else "Tin đăng khác của người bán",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -648,56 +675,13 @@ fun PetDetailsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(sellerPets) { otherPet ->
-                            Surface(
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .height(180.dp)
-                                    .clickable { /* Tạm thời chỉ xem, hoặc bạn có thể gọi một hàm onPetClick mới */ },
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFEEEEEE))
-                            ) {
-                                Column {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(100.dp)
-                                            .background(Color.LightGray)
-                                    ) {
-                                        if (!otherPet.imageUrl.isNullOrEmpty()) {
-                                            AsyncImage(
-                                                model = otherPet.imageUrl,
-                                                contentDescription = otherPet.name,
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        } else {
-                                            Image(
-                                                painter = painterResource(otherPet.imageRes),
-                                                contentDescription = otherPet.name,
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        }
-                                    }
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        Text(
-                                            text = otherPet.name,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            lineHeight = 14.sp,
-                                            modifier = Modifier.height(30.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = otherPet.price ?: "Miễn phí",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = Color(0xFFE53935)
-                                        )
-                                    }
-                                }
+                            Box(modifier = Modifier.width(160.dp)) {
+                                MarketItemCard(
+                                    item = otherPet,
+                                    onClick = onPetClick,
+                                    userLatitude = userLatitude,
+                                    userLongitude = userLongitude
+                                )
                             }
                         }
                     }
@@ -877,13 +861,15 @@ fun PetDetailsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        SpecRow("Giống", pet.breed)
-                        SpecRow("Độ tuổi", pet.age)
+                        SpecRow("Giống", pet.breed ?: "Chưa rõ")
+                        SpecRow("Độ tuổi (tháng)", pet.age ?: "Chưa rõ")
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        SpecRow("Giới tính", pet.sex)
-                        SpecRow("Trọng lượng", pet.weight)
+                        SpecRow("Giới tính", pet.sex ?: "Chưa rõ")
+                        SpecRow("Trọng lượng (kg)", pet.weight ?: "Chưa rõ")
+                        SpecRow("Tiêm phòng", if (pet.isVaccinated) "Đã tiêm" else "Chưa tiêm")
+                        SpecRow("Triệt sản", if (pet.isNeutered) "Đã triệt sản" else "Chưa")
                     }
                 }
             }
@@ -900,7 +886,7 @@ fun PetDetailsScreen(
                 Text("Mô tả chi tiết", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = pet.about,
+                    text = pet.about ?: "Chưa có thông tin",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.DarkGray,
                     lineHeight = 24.sp
@@ -1113,7 +1099,7 @@ fun PetDetailsScreenPreview() {
         id = 1,
         name = "Bé Mèo Nga lai Ta rất ngoan và dể nuôi",
         breed = "Mèo Nga lai",
-        age = "1.5 năm",
+        age = "36 tháng",
         weight = "2.5 kg",
         sex = "Cái",
         about = "Bé mèo Nga lai ta, màu trắng xám, được 1 tuổi rưỡi, cân nặng khoảng 2.5kg. Bé ăn được hạt và pate, đi vệ sinh đúng chỗ trong thau cát. Bé rất ngoan, quấn chủ, không cào cắn đồ đạc. Do chuyển trọ không cho nuôi chó mèo nên mình cần tìm chủ mới yêu thương bé.",

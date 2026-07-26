@@ -56,4 +56,5 @@ object NetworkClient {
         .build()
 
     val apiService: ApiService = retrofit.create(ApiService::class.java)
+    val orgApi: OrgApi = retrofit.create(OrgApi::class.java)
 }

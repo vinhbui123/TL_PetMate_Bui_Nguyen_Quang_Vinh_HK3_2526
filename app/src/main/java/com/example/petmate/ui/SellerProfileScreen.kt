@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Block
@@ -21,6 +20,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import com.example.petmate.model.SellerRatingSummary
+import com.example.petmate.ui.components.ReportDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,12 +49,13 @@ fun SellerProfileScreen(
     onPetClick: (Pet) -> Unit,
     userLatitude: Double? = null,
     userLongitude: Double? = null,
+    isOrgProfile: Boolean = false,
     blockedUserIds: List<Long> = emptyList(),
     onBlockStatusChanged: () -> Unit = {},
     onViewFollowers: (Long, Int) -> Unit = { _, _ -> }
 ) {
     var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
-    var ratingSummary by remember { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
+    var ratingSummary by remember { mutableStateOf<SellerRatingSummary?>(null) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -62,12 +65,12 @@ fun SellerProfileScreen(
     var followersCount by remember { mutableStateOf(0L) }
     var followingCount by remember { mutableStateOf(0L) }
     var isFollowLoading by remember { mutableStateOf(false) }
-    val isBlocked = blockedUserIds.contains(sellerId)
+    var isBlocked by remember { mutableStateOf(blockedUserIds.contains(sellerId)) }
     val coroutineScope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     if (showReportDialog) {
-        com.example.petmate.ui.components.ReportDialog(
+        ReportDialog(
             reportedUserId = sellerId,
             onDismissRequest = { showReportDialog = false },
             onSuccess = {
@@ -87,8 +90,13 @@ fun SellerProfileScreen(
             // Check if current user is following this seller
             isFollowing = NetworkClient.apiService.checkFollowStatus(sellerId)
             
-            // Fetch seller's pets
-            pets = NetworkClient.apiService.getPetsByUser(sellerId)
+            // Fetch seller's pets and filter based on profile type
+            val allPets = NetworkClient.apiService.getPetsByUser(sellerId)
+            pets = if (isOrgProfile) {
+                allPets.filter { it.organization != null }
+            } else {
+                allPets.filter { it.organization == null }
+            }
             try {
                 ratingSummary = NetworkClient.apiService.getSellerRatingSummary(sellerId)
             } catch (e: Exception) {

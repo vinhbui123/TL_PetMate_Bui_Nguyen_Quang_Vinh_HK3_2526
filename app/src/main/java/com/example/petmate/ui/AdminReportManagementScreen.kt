@@ -311,7 +311,7 @@ fun ReportItemCard(
 }
 
 @Composable
-fun ReportInfoRow(label: String, value: String) {
+fun ReportInfoRow(label: String, value: String?) {
     Row(
         modifier = Modifier.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -323,7 +323,7 @@ fun ReportInfoRow(label: String, value: String) {
             fontWeight = FontWeight.Medium
         )
         Text(
-            text = value,
+            text = value ?: "Không có",
             fontSize = 13.sp,
             color = TextGray,
             fontWeight = FontWeight.Bold

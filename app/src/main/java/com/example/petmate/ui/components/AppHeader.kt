@@ -36,7 +36,10 @@ fun AppHeader(
     onAdminDashboardClick: () -> Unit = {},
     onBlockedUsersClick: () -> Unit = {},
     onPostHistoryClick: () -> Unit = {},
-    onNotificationsClick: () -> Unit = {}
+    onNotificationsClick: () -> Unit = {},
+    onOrgProfileClick: () -> Unit = {},
+    onOrgDashboardClick: () -> Unit = {},
+    onOrgRegistrationClick: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
     
@@ -57,7 +60,6 @@ fun AppHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -225,6 +227,38 @@ fun AppHeader(
                                     onBlockedUsersClick()
                                 }
                             )
+                            DropdownMenuItem(
+                                leadingIcon = { 
+                                    Icon(
+                                        Icons.Default.HomeWork, 
+                                        contentDescription = null, 
+                                        tint = TextGray,
+                                        modifier = Modifier.size(20.dp)
+                                    ) 
+                                },
+                                text = { Text("Hồ sơ Trạm Cứu Hộ", color = TextGray, fontWeight = FontWeight.Medium) },
+                                onClick = {
+                                    expanded = false
+                                    onOrgProfileClick()
+                                }
+                            )
+                            if (currentUser.role == "RESCUE_ORG" || currentUser.role == "MANAGER") {
+                                DropdownMenuItem(
+                                    leadingIcon = { 
+                                        Icon(
+                                            Icons.Default.Assessment, 
+                                            contentDescription = null, 
+                                            tint = TextGray,
+                                            modifier = Modifier.size(20.dp)
+                                        ) 
+                                    },
+                                    text = { Text("Thống kê hoạt động", color = TextGray, fontWeight = FontWeight.Medium) },
+                                    onClick = {
+                                        expanded = false
+                                        onOrgDashboardClick()
+                                    }
+                                )
+                            }
                             if (currentUser.role == "ADMIN") {
                                 DropdownMenuItem(
                                     leadingIcon = { 

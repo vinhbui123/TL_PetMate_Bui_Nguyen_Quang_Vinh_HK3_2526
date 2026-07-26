@@ -55,6 +55,9 @@ interface ApiService {
     @GET("pets/my-pets")
     suspend fun getMyPets(): List<Pet>
     
+    @GET("pets/org/{orgId}")
+    suspend fun getOrgPets(@Path("orgId") orgId: Long): List<Pet>
+    
     @GET("pets/user/{userId}")
     suspend fun getPetsByUser(@Path("userId") userId: Long): List<Pet>
     
@@ -156,6 +159,9 @@ interface ApiService {
     @GET("adoptions/received")
     suspend fun getReceivedAdoptionApplications(): List<AdoptionResponse>
 
+    @GET("adoptions/org/{orgId}")
+    suspend fun getOrgAdoptions(@Path("orgId") orgId: Long): List<AdoptionResponse>
+
     @PUT("adoptions/{id}/status")
     suspend fun updateAdoptionStatus(
         @Path("id") id: Long,
@@ -184,6 +190,12 @@ interface ApiService {
     suspend fun toggleSave(@Path("petId") petId: Long, @Body empty: Any = Any()): com.example.petmate.model.SaveStatusResponse
 
     // Admin Endpoints
+    @GET("admin/stats")
+    suspend fun getSystemStats(): com.example.petmate.model.SystemStatsDto
+
+    @GET("admin/logs")
+    suspend fun getSystemLogs(): List<com.example.petmate.model.SystemLog>
+
     @GET("admin/users/pending-rescue")
     suspend fun getPendingRescueOrgs(): List<User>
 
@@ -222,4 +234,13 @@ interface ApiService {
 
     @DELETE("user/ratings/{ratingId}")
     suspend fun deleteRating(@Path("ratingId") ratingId: Long): Response<Unit>
+
+    @PUT("user/request-rescue-org")
+    suspend fun requestRescueOrg(): User
+
+    @GET("user/{userId}/ratings")
+    suspend fun getSellerReviews(@Path("userId") userId: Long): List<RatingResponse>
+
+    @GET("user/{userId}/rating-status")
+    suspend fun checkRatingStatus(@Path("userId") userId: Long): Boolean
 }

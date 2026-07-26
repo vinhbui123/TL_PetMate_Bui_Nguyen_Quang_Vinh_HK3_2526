@@ -62,7 +62,8 @@ fun PetMateApp() {
         AppScreen.Login -> LoginScreen(
             onLoginSuccess = { currentScreen = AppScreen.Main },
             onNavigateToRegister = { currentScreen = AppScreen.Register },
-            onNavigateToForgotPassword = { currentScreen = AppScreen.ForgotPassword }
+            onNavigateToForgotPassword = { currentScreen = AppScreen.ForgotPassword },
+            onContinueAsGuest = { currentScreen = AppScreen.Main }
         )
         AppScreen.Register -> RegisterScreen(
             onRegisterSuccess = { currentScreen = AppScreen.Login },
@@ -298,6 +299,7 @@ fun MainContent(onLogout: () -> Unit) {
         onTabSelected = { selectedTab = it },
         coroutineScope = coroutineScope,
         onNavigate = { screen -> screenStack = screenStack + screen },
+        onNavigateAndClear = { screen -> screenStack = listOf(screen) },
         onPop = { if (screenStack.size > 1) screenStack = screenStack.dropLast(1) },
         onLogout = onLogout,
         onRefresh = { refreshTrigger++ }

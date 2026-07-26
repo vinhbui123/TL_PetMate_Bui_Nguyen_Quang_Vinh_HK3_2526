@@ -2,6 +2,7 @@ package com.example.petmate.ui
 
 import android.net.Uri
 import android.widget.Toast
+import com.example.petmate.util.LocationHelper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material3.*
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,17 +45,40 @@ fun EditPetScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     
-    var name by remember { mutableStateOf(pet.name) }
+    var name by remember { mutableStateOf(pet.name ?: "") }
     var breed by remember { mutableStateOf(pet.breed ?: "") }
     var age by remember { mutableStateOf(pet.age ?: "") }
     var weight by remember { mutableStateOf(pet.weight ?: "") }
-    var gender by remember { mutableStateOf(pet.sex ?: "Đực") }
+    val initialGenderStr = when (pet.sex) {
+        "FEMALE" -> "Cái"
+        "UNKNOWN" -> "Không rõ"
+        else -> "Đực"
+    }
+    var gender by remember { mutableStateOf(initialGenderStr) }
     var description by remember { mutableStateOf(pet.about ?: "") }
     var price by remember { mutableStateOf(if (pet.price == "Miễn phí") "" else pet.price ?: "") }
     var category by remember { mutableStateOf(pet.category ?: "DOGS") }
+    var address by remember { mutableStateOf(pet.address ?: "") }
+    var latitude by remember { mutableStateOf(pet.latitude) }
+    var longitude by remember { mutableStateOf(pet.longitude) }
+    var isVaccinated by remember { mutableStateOf(pet.isVaccinated) }
+    var isNeutered by remember { mutableStateOf(pet.isNeutered) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     
     var isLoading by remember { mutableStateOf(false) }
+    var myOrg by remember { mutableStateOf<com.example.petmate.model.OrganizationProfileDto?>(null) }
+    var postAsOrg by remember { mutableStateOf(pet.organization != null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = NetworkClient.orgApi.getMyOrg()
+            if (response.isSuccessful) {
+                myOrg = response.body()
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri
@@ -80,6 +105,27 @@ fun EditPetScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (myOrg != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Đăng dưới danh nghĩa Tổ chức", fontWeight = FontWeight.Bold)
+                            Text(myOrg?.name ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                        Switch(checked = postAsOrg, onCheckedChange = { postAsOrg = it })
+                    }
+                }
+            }
+            
             // Image Picker
             Box(
                 modifier = Modifier
@@ -109,10 +155,51 @@ fun EditPetScreen(
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Tên thú cưng") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = breed, onValueChange = { breed = it }, label = { Text("Giống") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Giá (Để trống nếu Miễn phí)") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Tuổi") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Cân nặng") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Tuổi (tháng)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Cân nặng (kg)") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Mô tả chi tiết") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
             
+            // Health statuses
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = isVaccinated, onCheckedChange = { isVaccinated = it })
+                Text("Đã tiêm phòng")
+                Spacer(modifier = Modifier.width(16.dp))
+                Checkbox(checked = isNeutered, onCheckedChange = { isNeutered = it })
+                Text("Đã triệt sản")
+            }
+            
+            // Address & Location
+            OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Địa chỉ thú cưng") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (latitude != null && longitude != null) {
+                    Text(text = "Tọa độ: $latitude, $longitude", color = androidx.compose.ui.graphics.Color.Gray, fontSize = 12.sp)
+                } else {
+                    Text(text = "Chưa có tọa độ", color = androidx.compose.ui.graphics.Color.Gray, fontSize = 12.sp)
+                }
+                TextButton(onClick = {
+                    coroutineScope.launch {
+                        val loc = LocationHelper.getCurrentLocation(context)
+                        if (loc != null) {
+                            latitude = loc.latitude
+                            longitude = loc.longitude
+                            val addrStr = LocationHelper.getAddressFromLocation(context, loc.latitude, loc.longitude)
+                            if (addrStr != null) {
+                                address = addrStr
+                            }
+                            Toast.makeText(context, "Đã cập nhật vị trí!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Không thể lấy vị trí. Vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) {
+                    androidx.compose.material3.Text("📍 Lấy vị trí")
+                }
+            }
+
             // Category Selection
             Text("Danh mục", fontWeight = FontWeight.Bold)
             androidx.compose.foundation.layout.FlowRow(
@@ -153,19 +240,36 @@ fun EditPetScreen(
             
             Button(
                 onClick = {
-                    if (name.isBlank() || breed.isBlank()) {
-                        Toast.makeText(context, "Vui lòng nhập tên và giống!", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
+
                     isLoading = true
                     coroutineScope.launch {
                         try {
+                            // Geocode address if necessary
+                            var finalLat = latitude
+                            var finalLng = longitude
+                            if (address.isNotBlank() && (finalLat == null || finalLng == null || address != pet.address)) {
+                                val coords = LocationHelper.geocodeAddress(context, address)
+                                if (coords != null) {
+                                    finalLat = coords.first
+                                    finalLng = coords.second
+                                }
+                            }
                             val dto = PetRequest(
                                 name = name, breed = breed, age = age, weight = weight,
-                                gender = gender, description = description,
+                                gender = when (gender) {
+                                    "Cái" -> "FEMALE"
+                                    "Không rõ" -> "UNKNOWN"
+                                    else -> "MALE"
+                                }, description = description,
                                 price = if (price.isBlank()) "Miễn phí" else price,
                                 category = category,
-                                status = pet.status ?: "AVAILABLE"
+                                address = address,
+                                latitude = finalLat,
+                                longitude = finalLng,
+                                status = pet.status ?: "AVAILABLE",
+                                isVaccinated = isVaccinated,
+                                isNeutered = isNeutered,
+                                organizationId = if (postAsOrg) myOrg?.id else null
                             )
                             val updatedPet = NetworkClient.apiService.updatePet(pet.id, dto)
                             
@@ -185,6 +289,15 @@ fun EditPetScreen(
                             
                             Toast.makeText(context, "Lưu thay đổi thành công!", Toast.LENGTH_LONG).show()
                             onEditSuccess()
+                        } catch (e: retrofit2.HttpException) {
+                            e.printStackTrace()
+                            val errorBody = e.response()?.errorBody()?.string()
+                            val errorMessage = try {
+                                org.json.JSONObject(errorBody ?: "").getString("message")
+                            } catch (ex: Exception) {
+                                e.message()
+                            }
+                            Toast.makeText(context, "Lỗi: $errorMessage", Toast.LENGTH_LONG).show()
                         } catch (e: Exception) {
                             e.printStackTrace()
                             Toast.makeText(context, "Lỗi: ${e.message}", Toast.LENGTH_LONG).show()

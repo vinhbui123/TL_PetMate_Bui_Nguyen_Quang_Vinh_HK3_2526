@@ -33,7 +33,7 @@ fun AdoptionManagementScreen(currentUserId: Long? = null, onBack: (() -> Unit)? 
     var receivedApplications by remember { mutableStateOf<List<AdoptionResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Đơn đã gửi", "Đơn nhận được")
+    val tabs = listOf("Đơn đã gửi", "Đơn nhận được", "Lịch sử nhận nuôi")
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -42,7 +42,21 @@ fun AdoptionManagementScreen(currentUserId: Long? = null, onBack: (() -> Unit)? 
             isLoading = true
             try {
                 sentApplications = NetworkClient.apiService.getMyAdoptionApplications()
-                receivedApplications = NetworkClient.apiService.getReceivedAdoptionApplications()
+                
+                val personalReceived = NetworkClient.apiService.getReceivedAdoptionApplications()
+                var orgReceived: List<AdoptionResponse> = emptyList()
+                
+                try {
+                    val orgResponse = NetworkClient.orgApi.getMyOrg()
+                    if (orgResponse.isSuccessful && orgResponse.body() != null) {
+                        val orgId = orgResponse.body()!!.id ?: 0L
+                        orgReceived = NetworkClient.apiService.getOrgAdoptions(orgId)
+                    }
+                } catch (e: Exception) {
+                    // Ignore org fetch error
+                }
+                
+                receivedApplications = (personalReceived + orgReceived).distinctBy { it.id }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -99,8 +113,15 @@ fun AdoptionManagementScreen(currentUserId: Long? = null, onBack: (() -> Unit)? 
                     selectedTabIndex == 1 && receivedApplications.isEmpty() -> {
                         Text("Chưa có đơn đăng ký nhận nuôi nào.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
                     }
+                    selectedTabIndex == 2 && receivedApplications.none { it.status == "APPROVED" } -> {
+                        Text("Chưa có bé nào được cho nhận nuôi thành công.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
+                    }
                     else -> {
-                        val currentList = if (selectedTabIndex == 0) sentApplications else receivedApplications
+                        val currentList = when (selectedTabIndex) {
+                            0 -> sentApplications
+                            1 -> receivedApplications
+                            else -> receivedApplications.filter { it.status == "APPROVED" }
+                        }
                         
                         LazyColumn(
                             contentPadding = PaddingValues(16.dp),

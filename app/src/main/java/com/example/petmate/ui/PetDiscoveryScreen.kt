@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -33,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +60,9 @@ fun PetDiscoveryScreen(
     onBlockedUsersClick: () -> Unit = {},
     onPostHistoryClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
+    onOrgProfileClick: () -> Unit = {},
+    onOrgDashboardClick: () -> Unit = {},
+    onOrgRegistrationClick: () -> Unit = {},
     userLatitude: Double? = null,
     userLongitude: Double? = null,
     blockedUserIds: List<Long> = emptyList()
@@ -104,9 +110,10 @@ fun PetDiscoveryScreen(
     }
 
 
-    Scaffold(
-        containerColor = BackgroundBeige,
-    ) { innerPadding ->
+    Surface(
+        color = BackgroundBeige,
+        modifier = Modifier.fillMaxSize()
+    ) {
         @OptIn(ExperimentalMaterial3Api::class)
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -123,7 +130,10 @@ fun PetDiscoveryScreen(
                     onAdminDashboardClick = onAdminDashboardClick,
                     onBlockedUsersClick = onBlockedUsersClick,
                     onPostHistoryClick = onPostHistoryClick,
-                    onNotificationsClick = onNotificationsClick
+                    onNotificationsClick = onNotificationsClick,
+                    onOrgProfileClick = onOrgProfileClick,
+                    onOrgDashboardClick = onOrgDashboardClick,
+                    onOrgRegistrationClick = onOrgRegistrationClick
                 )
                 
                 DiscoverySearchBar(
@@ -146,8 +156,8 @@ fun PetDiscoveryScreen(
                     val displayedPets = remember(apiPets, searchQuery, filterMaxDistance, filterArea, userLatitude, userLongitude) {
                         apiPets.filter {
                             val matchesSearch = searchQuery.isEmpty() ||
-                                    it.name.contains(searchQuery, ignoreCase = true) ||
-                                    it.breed.contains(searchQuery, ignoreCase = true)
+                                    (it.name?.contains(searchQuery, ignoreCase = true) == true) ||
+                                    (it.breed?.contains(searchQuery, ignoreCase = true) == true)
                             
                             var matchesDistance = true
                             if (filterMaxDistance < 100f && userLatitude != null && userLongitude != null) {
@@ -346,35 +356,35 @@ fun PetCard(
     userLatitude: Double? = null,
     userLongitude: Double? = null
 ) {
-    // Surface with elevation can be heavy on old GPUs. 
-    // Using a simple Box with background and clip is lighter.
-    Box(
+    val isOrg = pet.organization != null
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(CardWhite)
-            .clickable { onPetClick(pet) }
-            .padding(16.dp)
+            .clickable { onPetClick(pet) },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Image Container
             Box(
                 modifier = Modifier
-                    .width(110.dp)
+                    .width(120.dp)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFF0F0F0)) // Placeholder background
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFF0F0F0))
             ) {
                 if (!pet.imageUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                             .data(pet.imageUrl)
                             .crossfade(true)
-                            .size(300) // Force low resolution decode for old devices
+                            .size(300)
                             .build(),
                         contentDescription = pet.name,
                         modifier = Modifier.fillMaxSize(),
@@ -386,6 +396,20 @@ fun PetCard(
                         contentDescription = pet.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
+                    )
+                }
+                
+                // Badge overlay at top-left of image
+                Surface(
+                    color = (if (isOrg) SuccessGreen else AccentOrange).copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(bottomEnd = 12.dp),
+                    modifier = Modifier.align(Alignment.TopStart)
+                ) {
+                    Icon(
+                        imageVector = if (isOrg) Icons.Default.Verified else Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.padding(4.dp).size(12.dp)
                     )
                 }
             }
@@ -403,14 +427,15 @@ fun PetCard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = pet.name,
+                            text = pet.name ?: "Chưa có tên",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = TextGray,
-                            maxLines = 1
+                            color = DeepBrown,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = pet.breed,
+                            text = pet.breed ?: "Chưa rõ",
                             style = MaterialTheme.typography.bodySmall,
                             color = IconGray
                         )
@@ -419,8 +444,8 @@ fun PetCard(
                         Icon(
                             if (pet.likeCount > 0) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = null, 
-                            tint = if (pet.likeCount > 0) Color.Red else IconGray, 
-                            modifier = Modifier.size(14.dp)
+                            tint = if (pet.likeCount > 0) HeartRed else IconGray, 
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(text = pet.likeCount.toString(), style = MaterialTheme.typography.labelSmall, color = TextGray, fontWeight = FontWeight.Bold)
@@ -428,27 +453,33 @@ fun PetCard(
                 }
 
                 Column {
+                    val isFree = pet.price.isNullOrEmpty() || pet.price == "0" || pet.price == "0.0" || pet.price.lowercase().contains("miễn phí")
+                    val displayPrice = if (isFree) "Miễn phí" else "${pet.price}đ"
+                    
                     Text(
-                        text = pet.age,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = IconGray
+                        text = displayPrice,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isFree) PrimaryPeach else ErrorRed
                     )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = PrimaryPeach,
+                            tint = IconGray,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         
-                        // Already optimized calculations
                         val locationText = remember(pet.latitude, pet.longitude, userLatitude, userLongitude) {
                             LocationHelper.getDistanceText(
                                 userLatitude, userLongitude,
                                 pet.latitude,
                                 pet.longitude
-                            )?.let { "Cách $it" } ?: "Chưa rõ khoảng cách"
+                            )?.let { "Cách $it" } ?: "Chưa rõ"
                         }
                         val timeText = remember(pet.createdAt) {
                             TimeHelper.getRelativeTime(pet.createdAt)
@@ -457,8 +488,9 @@ fun PetCard(
                         Text(
                             text = "$locationText • $timeText",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = TextGray
+                            color = IconGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

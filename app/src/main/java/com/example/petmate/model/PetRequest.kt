@@ -9,5 +9,11 @@ data class PetRequest(
     val description: String,
     val price: String?,
     val category: String,
-    val status: String? = "AVAILABLE"
+    val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val status: String? = "AVAILABLE",
+    val isVaccinated: Boolean? = false,
+    val isNeutered: Boolean? = false,
+    val organizationId: Long? = null
 )

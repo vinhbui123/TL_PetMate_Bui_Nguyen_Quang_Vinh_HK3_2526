@@ -20,19 +20,18 @@ data class PetUser(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val averageRating: Double? = 0.0,
-    val ratingCount: Int? = 0,
-    val lastActiveAt: String? = null
+    val ratingCount: Int? = 0,    val violationCount: Int? = 0,    val lastActiveAt: String? = null
 )
 
 @Immutable
 data class Pet(
     val id: Int,
-    val name: String,
-    val breed: String,
-    val age: String,
-    val weight: String,
-    @SerializedName("gender") val sex: String,
-    @SerializedName("description") val about: String,
+    val name: String? = null,
+    val breed: String? = null,
+    @SerializedName("ageMonths") val age: String? = null,
+    val weight: String? = null,
+    @SerializedName("gender") val sex: String? = null,
+    @SerializedName("description") val about: String? = null,
     val imageUrl: String? = null,
     val price: String? = null,
     val status: String? = null,
@@ -40,9 +39,13 @@ data class Pet(
     val user: PetUser? = null,
     val likeCount: Int = 0,
     val createdAt: String? = null,
+    val address: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val isVaccinated: Boolean = false,
+    val isNeutered: Boolean = false,
     val averageRating: Double? = 0.0,
     val ratingCount: Int? = 0,
+    val organization: OrganizationProfileDto? = null,
     @DrawableRes val imageRes: Int = R.drawable.beagle_dog
 )

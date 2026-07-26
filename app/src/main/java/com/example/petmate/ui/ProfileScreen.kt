@@ -10,6 +10,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.HomeWork
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AppRegistration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
 
@@ -45,10 +48,13 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun ProfileScreen(
     onBackClick: () -> Unit,
+    onSaveSuccess: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onViewFollowers: (Long, Int) -> Unit = { _, _ -> },
     onManageAdoptions: () -> Unit = {},
-    onViewSavedPets: () -> Unit = {}
+    onViewSavedPets: () -> Unit = {},
+    onOrgRegistrationClick: () -> Unit = {},
+    onOrgProfileClick: () -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -174,7 +180,7 @@ fun ProfileScreen(
                         )
                     } else {
                         Icon(
-                            Icons.Default.Person,
+                            Icons.Default.AccountCircle,
                             contentDescription = "Default Avatar",
                             modifier = Modifier.size(64.dp),
                             tint = Color.White
@@ -261,7 +267,15 @@ fun ProfileScreen(
                                 )
                                 NetworkClient.apiService.updateProfile(updatedUser)
                                 Toast.makeText(context, "Đã lưu thành công!", Toast.LENGTH_SHORT).show()
-                                onBackClick()
+                                onSaveSuccess()
+                            } catch (e: retrofit2.HttpException) {
+                                val errorBody = e.response()?.errorBody()?.string()
+                                val errorMessage = try {
+                                    org.json.JSONObject(errorBody ?: "").getString("message")
+                                } catch (ex: Exception) {
+                                    "Lỗi kết nối"
+                                }
+                                snackbarHostState.showSnackbar("Lỗi: $errorMessage")
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar("Lỗi khi lưu: ${e.localizedMessage}")
                             } finally {
@@ -292,8 +306,36 @@ fun ProfileScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onOrgProfileClick,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.PrimaryPeach)
+                ) {
+                    Icon(Icons.Default.HomeWork, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Hồ sơ Trạm Cứu Hộ", fontWeight = FontWeight.Bold, color = Color.White)
+                }
                 
-                // Nút Quản lý Đơn Xin Nhận Nuôi đã được chuyển ra thanh điều hướng bên dưới
+
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Nút Đăng xuất
+                Button(
+                    onClick = onLogoutClick,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.DarkGray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Đăng xuất", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Nút Xóa Tài Khoản
                 OutlinedButton(
                     onClick = { showDeleteDialog = true },

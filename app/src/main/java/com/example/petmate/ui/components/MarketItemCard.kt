@@ -1,7 +1,6 @@
 package com.example.petmate.ui.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +8,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -35,20 +37,22 @@ fun MarketItemCard(
     userLatitude: Double? = null,
     userLongitude: Double? = null
 ) {
-    Box(
+    val isOrg = item.organization != null
+    
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardWhite)
-            .clickable { onClick(item) }
+            .clickable { onClick(item) },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            // Image
+            // Image with Badge Overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .background(Color(0xFFF0F0F0))
             ) {
                 if (!item.imageUrl.isNullOrEmpty()) {
                     AsyncImage(
@@ -65,48 +69,84 @@ fun MarketItemCard(
                         contentScale = ContentScale.Crop
                     )
                 }
+                
+                // Badge overlay at top-left
+                Surface(
+                    color = (if (isOrg) SuccessGreen else AccentOrange).copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(bottomEnd = 12.dp),
+                    modifier = Modifier.align(Alignment.TopStart)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isOrg) Icons.Default.Verified else Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isOrg) "Tổ chức" else "Cá nhân",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             
-            // Details
             Column(modifier = Modifier.padding(12.dp)) {
+                // Name and Likes
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextGray,
-                        maxLines = 2,
+                        text = item.name ?: "Chưa có tên",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = DeepBrown,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        lineHeight = 18.sp,
                         modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             if (item.likeCount > 0) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = null, 
-                            tint = if (item.likeCount > 0) Color.Red else IconGray, 
-                            modifier = Modifier.size(14.dp)
+                            tint = if (item.likeCount > 0) HeartRed else IconGray, 
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = item.likeCount.toString(), style = MaterialTheme.typography.labelSmall, color = TextGray, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = item.likeCount.toString(), 
+                            style = MaterialTheme.typography.labelMedium, 
+                            color = TextGray, 
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Price
+                val isFree = item.price.isNullOrEmpty() || item.price == "0" || item.price == "0.0" || item.price.lowercase().contains("miễn phí")
+                val displayPrice = if (isFree) "Miễn phí" else "${item.price}đ"
                 
                 Text(
-                    text = item.price ?: "Thỏa thuận",
+                    text = displayPrice,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFD32F2F)
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (isFree) PrimaryPeach else ErrorRed
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
+                // Location and Time
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -115,11 +155,11 @@ fun MarketItemCard(
                         Icons.Default.LocationOn,
                         contentDescription = "Location",
                         tint = IconGray,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     
-                    val locationText = remember(item.latitude, item.longitude, userLatitude, userLongitude) {
+                    val distanceText = remember(item.latitude, item.longitude, userLatitude, userLongitude) {
                         LocationHelper.getDistanceText(
                             userLatitude, userLongitude,
                             item.latitude,
@@ -131,8 +171,8 @@ fun MarketItemCard(
                     }
 
                     Text(
-                        text = "$locationText • $timeText",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "$distanceText • $timeText",
+                        style = MaterialTheme.typography.bodySmall,
                         color = IconGray,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

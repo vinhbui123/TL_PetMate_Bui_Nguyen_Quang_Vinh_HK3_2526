@@ -36,6 +36,7 @@ import com.example.petmate.ui.AdoptionManagementScreen
 import com.example.petmate.ui.ChatInboxScreen
 import com.example.petmate.ui.PetMarketScreen
 import com.example.petmate.ui.theme.PrimaryPeach
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScaffold(
@@ -51,6 +52,23 @@ fun MainScaffold(
     blockedUserIds: List<Long>,
     context: Context
 ) {
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    val navigateToOrgProfile = {
+        coroutineScope.launch {
+            try {
+                val res = com.example.petmate.network.NetworkClient.orgApi.getMyOrg()
+                if (res.isSuccessful && res.body() != null) {
+                    onNavigate(Screen.OrgProfile(res.body()!!))
+                } else {
+                    onNavigate(Screen.OrgRegistration)
+                }
+            } catch (_: Exception) {
+                onNavigate(Screen.OrgRegistration)
+            }
+        }
+    }
+
     Scaffold(
         floatingActionButton = {
             if (selectedTab == 0 || selectedTab == 1) {
@@ -91,129 +109,111 @@ fun MainScaffold(
             NavigationBar(
                 containerColor = Color.White
             ) {
-                if (userRole == "RESCUE_ORG") {
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { onTabSelected(0) },
-                        icon = { Icon(Icons.Default.Favorite, contentDescription = "Kho thú cưng") },
-                        label = { Text("Kho thú cưng") }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { onTabSelected(1) },
-                        icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Duyệt đơn") },
-                        label = { Text("Duyệt đơn") }
-                    )
-                } else {
-                    // Default is MEMBER
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { onTabSelected(0) },
-                        icon = { Icon(Icons.Default.Favorite, contentDescription = "Nhận nuôi") },
-                        label = { Text("Nhận nuôi") }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { onTabSelected(1) },
-                        icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Mua bán") },
-                        label = { Text("Mua bán") }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 2,
-                        onClick = { 
-                            if (currentUser == null) {
-                                Toast.makeText(context, "Vui lòng đăng nhập để xem đơn!", android.widget.Toast.LENGTH_SHORT).show()
-                                onLogout()
-                            } else {
-                                onTabSelected(2)
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Assignment, contentDescription = "Đơn của tôi") },
-                        label = { Text("Đơn của tôi") }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 3,
-                        onClick = { 
-                            if (currentUser == null) {
-                                Toast.makeText(context, "Vui lòng đăng nhập để xem tin nhắn!", android.widget.Toast.LENGTH_SHORT).show()
-                                onLogout()
-                            } else {
-                                onTabSelected(3)
-                            }
-                        },
-                        icon = { 
-                            if (totalUnreadCount > 0) {
-                                BadgedBox(
-                                    badge = {
-                                        Badge { Text(totalUnreadCount.toString()) }
-                                    }
-                                ) {
-                                    Icon(Icons.Default.Mail, contentDescription = "Tin nhắn")
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { onTabSelected(0) },
+                    icon = { Icon(Icons.Default.Favorite, contentDescription = "Nhận nuôi") },
+                    label = { Text("Nhận nuôi") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { onTabSelected(1) },
+                    icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Mua bán") },
+                    label = { Text("Mua bán") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { 
+                        if (currentUser == null) {
+                            Toast.makeText(context, "Vui lòng đăng nhập để xem đơn!", android.widget.Toast.LENGTH_SHORT).show()
+                            onLogout()
+                        } else {
+                            onTabSelected(2)
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Assignment, contentDescription = "Đơn của tôi") },
+                    label = { Text("Đơn của tôi") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 3,
+                    onClick = { 
+                        if (currentUser == null) {
+                            Toast.makeText(context, "Vui lòng đăng nhập để xem tin nhắn!", android.widget.Toast.LENGTH_SHORT).show()
+                            onLogout()
+                        } else {
+                            onTabSelected(3)
+                        }
+                    },
+                    icon = { 
+                        if (totalUnreadCount > 0) {
+                            BadgedBox(
+                                badge = {
+                                    Badge { Text(totalUnreadCount.toString()) }
                                 }
-                            } else {
+                            ) {
                                 Icon(Icons.Default.Mail, contentDescription = "Tin nhắn")
                             }
-                        },
-                        label = { Text("Tin nhắn") }
-                    )
-                }
+                        } else {
+                            Icon(Icons.Default.Mail, contentDescription = "Tin nhắn")
+                        }
+                    },
+                    label = { Text("Tin nhắn") }
+                )
             }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             when (selectedTab) {
                 0 -> {
-                    if (userRole == "RESCUE_ORG") {
-                        AdoptionManagementScreen(currentUserId = currentUser?.id)
-                    } else {
-                        com.example.petmate.ui.PetDiscoveryScreen(
-                            currentUser = currentUser,
-                            onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) },
-                            onLogoutClick = onLogout,
-                            onProfileClick = { onNavigate(Screen.Profile) },
-                            onAdminDashboardClick = { onNavigate(Screen.AdminDashboard) },
-                            onBlockedUsersClick = { onNavigate(Screen.BlockedUsers) },
-                            onPostHistoryClick = { onNavigate(Screen.PostHistory) },
-                            onNotificationsClick = { onNavigate(Screen.Notification) },
-                            onNavigateToPostAd = { onNavigate(Screen.PostPet) },
-                            userLatitude = userLatitude,
-                            userLongitude = userLongitude,
-                            blockedUserIds = blockedUserIds
-                        )
-                    }
+                    com.example.petmate.ui.PetDiscoveryScreen(
+                        currentUser = currentUser,
+                        onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) },
+                        onLogoutClick = onLogout,
+                        onProfileClick = { onNavigate(Screen.Profile) },
+                        onAdminDashboardClick = { onNavigate(Screen.AdminDashboard) },
+                        onBlockedUsersClick = { onNavigate(Screen.BlockedUsers) },
+                        onPostHistoryClick = { onNavigate(Screen.PostHistory) },
+                        onNotificationsClick = { onNavigate(Screen.Notification) },
+                        onNavigateToPostAd = { onNavigate(Screen.PostPet) },
+                        onOrgProfileClick = { navigateToOrgProfile() },
+                        onOrgDashboardClick = { onNavigate(Screen.OrgDashboard) },
+                        onOrgRegistrationClick = { onNavigate(Screen.OrgRegistration) },
+                        userLatitude = userLatitude,
+                        userLongitude = userLongitude,
+                        blockedUserIds = blockedUserIds
+                    )
                 }
                 1 -> {
-                    if (userRole == "RESCUE_ORG") {
-                       AdoptionManagementScreen(currentUserId = currentUser?.id)
-                    } else {
-                       PetMarketScreen(
-                            onItemClick = { item ->
-                                onNavigate(Screen.PetDetails(item))
-                            },
-                            onNavigateToPostAd = { onNavigate(Screen.PostPet) },
-                            userLatitude = userLatitude,
-                            userLongitude = userLongitude,
-                            currentUser = currentUser,
-                            blockedUserIds = blockedUserIds
-                        )
-                    }
+                    PetMarketScreen(
+                        onItemClick = { item ->
+                            onNavigate(Screen.PetDetails(item))
+                        },
+                        onNavigateToPostAd = { onNavigate(Screen.PostPet) },
+                        onLogoutClick = onLogout,
+                        onProfileClick = { onNavigate(Screen.Profile) },
+                        onAdminDashboardClick = { onNavigate(Screen.AdminDashboard) },
+                        onBlockedUsersClick = { onNavigate(Screen.BlockedUsers) },
+                        onPostHistoryClick = { onNavigate(Screen.PostHistory) },
+                        onNotificationsClick = { onNavigate(Screen.Notification) },
+                        onOrgProfileClick = { navigateToOrgProfile() },
+                        onOrgDashboardClick = { onNavigate(Screen.OrgDashboard) },
+                        onOrgRegistrationClick = { onNavigate(Screen.OrgRegistration) },
+                        userLatitude = userLatitude,
+                        userLongitude = userLongitude,
+                        currentUser = currentUser,
+                        blockedUserIds = blockedUserIds
+                    )
                 }
                 2 -> {
-                    if (userRole == "RESCUE_ORG") {
-                        // Empty for RESCUE_ORG as they only have 2 tabs
-                    } else {
-                        AdoptionManagementScreen(currentUserId = currentUser?.id)
-                    }
+                    AdoptionManagementScreen(currentUserId = currentUser?.id)
                 }
                 3 -> {
-                    if (userRole != "RESCUE_ORG") {
-                        ChatInboxScreen(
-                            currentUserId = currentUser!!.id,
-                            onRoomClick = { room ->
-                                onNavigate(Screen.ChatConversation(room))
-                            }
-                        )
-                    }
+                    ChatInboxScreen(
+                        currentUserId = currentUser!!.id,
+                        onRoomClick = { room ->
+                            onNavigate(Screen.ChatConversation(room))
+                        }
+                    )
                 }
             }
         }

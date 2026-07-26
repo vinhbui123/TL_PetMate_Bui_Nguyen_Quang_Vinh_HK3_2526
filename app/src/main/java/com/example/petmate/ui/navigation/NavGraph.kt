@@ -9,6 +9,11 @@ import com.example.petmate.model.PetUser
 import com.example.petmate.model.User
 import com.example.petmate.network.NetworkClient
 import com.example.petmate.ui.*
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.petmate.repository.OrganizationRepository
+import com.example.petmate.ui.org.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -25,6 +30,7 @@ fun NavGraph(
     onTabSelected: (Int) -> Unit,
     coroutineScope: CoroutineScope,
     onNavigate: (Screen) -> Unit,
+    onNavigateAndClear: (Screen) -> Unit,
     onPop: () -> Unit,
     onLogout: () -> Unit,
     onRefresh: () -> Unit
@@ -51,7 +57,10 @@ fun NavGraph(
             BackHandler { onPop() }
             PostPetScreen(
                 onBackClick = onPop,
-                onPostSuccess = onPop
+                onPostSuccess = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                }
             )
         }
         is Screen.AdminDashboard -> {
@@ -62,8 +71,18 @@ fun NavGraph(
                 onNavigateToBroadcast = { onNavigate(Screen.AdminBroadcast) },
                 onNavigateToUserManagement = { onNavigate(Screen.AdminUserManagement) },
                 onNavigateToReports = { onNavigate(Screen.AdminReportManagement) },
+                onNavigateToLogs = { onNavigate(Screen.AdminLogs) },
+                onNavigateToStats = { onNavigate(Screen.AdminStats) },
                 onBack = onPop
             )
+        }
+        is Screen.AdminLogs -> {
+            BackHandler { onPop() }
+            AdminLogsScreen(onBack = onPop)
+        }
+        is Screen.AdminStats -> {
+            BackHandler { onPop() }
+            AdminStatsScreen(onBack = onPop)
         }
         is Screen.AdminRescueApproval -> {
             BackHandler { onPop() }
@@ -89,6 +108,10 @@ fun NavGraph(
             BackHandler { onPop() }
             ProfileScreen(
                 onBackClick = onPop,
+                onSaveSuccess = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                },
                 onLogoutClick = {
                     onPop()
                     onLogout()
@@ -101,6 +124,23 @@ fun NavGraph(
                 },
                 onViewSavedPets = {
                     onNavigate(Screen.SavedPets)
+                },
+                onOrgRegistrationClick = {
+                    onNavigate(Screen.OrgRegistration)
+                },
+                onOrgProfileClick = {
+                    coroutineScope.launch {
+                        try {
+                            val res = NetworkClient.orgApi.getMyOrg()
+                            if (res.isSuccessful && res.body() != null) {
+                                onNavigate(Screen.OrgProfile(res.body()!!))
+                            } else {
+                                onNavigate(Screen.OrgRegistration)
+                            }
+                        } catch (_: Exception) {
+                            onNavigate(Screen.OrgRegistration)
+                        }
+                    }
                 }
             )
         }
@@ -159,6 +199,7 @@ fun NavGraph(
             SellerProfileScreen(
                 sellerId = currentScreen.user.id,
                 sellerInfo = sellerAsPetUser,
+                isOrgProfile = currentScreen.isOrgProfile,
                 onBack = onPop,
                 onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) },
                 userLatitude = userLatitude,
@@ -179,7 +220,10 @@ fun NavGraph(
             AdoptionFormScreen(
                 pet = currentScreen.pet,
                 onBack = onPop,
-                onSubmitSuccess = onPop
+                onSubmitSuccess = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                }
             )
         }
         is Screen.PetDetails -> {
@@ -189,13 +233,13 @@ fun NavGraph(
                 onBackClick = onPop,
                 onAdoptClick = {
                     if (currentUser == null) {
-                        Toast.makeText(context, "Vui lòng đăng nhập để nhận nuôi!", android.widget.Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Vui lòng đăng nhập để nhận nuôi!", Toast.LENGTH_SHORT).show()
                         onLogout()
                     } else {
                         onNavigate(Screen.AdoptionForm(currentScreen.pet))
                     }
                 },
-                onViewSellerProfile = { seller -> onNavigate(Screen.SellerProfile(seller)) },
+                onViewSellerProfile = { seller, isOrg -> onNavigate(Screen.SellerProfile(seller, isOrg)) },
                 onChatClick = { seller ->
                     when {
                         currentUser == null -> {
@@ -226,6 +270,7 @@ fun NavGraph(
                         }
                     }
                 },
+                onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) },
                 userLatitude = userLatitude,
                 userLongitude = userLongitude,
                 currentUserId = currentUser?.id,
@@ -239,12 +284,15 @@ fun NavGraph(
             EditPetScreen(
                 pet = currentScreen.pet,
                 onBackClick = onPop,
-                onEditSuccess = onPop
+                onEditSuccess = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                }
             )
         }
         is Screen.AdminReportManagement -> {
             BackHandler { onPop() }
-            com.example.petmate.ui.AdminReportManagementScreen(
+            AdminReportManagementScreen(
                 onBack = onPop
             )
         }
@@ -258,5 +306,87 @@ fun NavGraph(
                 userLongitude = userLongitude
             )
         }
+        is Screen.OrgRegistration -> {
+            BackHandler { onPop() }
+            OrgRegisterScreen(
+                viewModel = rememberOrgViewModel(),
+                onBack = onPop
+            )
+        }
+        is Screen.OrgProfile -> {
+            val org = currentScreen.org
+            BackHandler { onPop() }
+            OrgProfileScreen(
+                initialOrg = org,
+                viewModel = rememberOrgViewModel(),
+                onBack = onPop,
+                onManageMembers = { onNavigate(Screen.OrgMemberManagement(org.id!!)) },
+                onEditClick = { updatedOrg -> onNavigate(Screen.EditOrgProfile(updatedOrg)) },
+                onLeaveSuccess = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                },
+                currentUserRole = userRole
+            )
+        }
+        is Screen.OrgMemberManagement -> {
+            BackHandler { onPop() }
+            OrgMemberManagementScreen(
+                orgId = currentScreen.orgId,
+                viewModel = rememberOrgViewModel(),
+                onBack = onPop,
+                onDissolved = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                },
+                onRefreshUser = onRefresh
+            )
+        }
+        is Screen.EditOrgProfile -> {
+            BackHandler { onPop() }
+            EditOrgProfileScreen(
+                org = currentScreen.org,
+                viewModel = rememberOrgViewModel(),
+                onBack = onPop,
+                onSaveSuccess = {
+                    onNavigateAndClear(Screen.Home)
+                    onRefresh()
+                }
+            )
+        }
+        is Screen.OrgDashboard -> {
+            BackHandler { onPop() }
+            OrgDashboardScreen(
+                onBackClick = onPop,
+                onNavigateToAdoptions = { onNavigate(Screen.AdoptionManagement) },
+                onNavigateToOrgProfile = {
+                    coroutineScope.launch {
+                        try {
+                            val res = NetworkClient.orgApi.getMyOrg()
+                            if (res.isSuccessful && res.body() != null) {
+                                onNavigate(Screen.OrgProfile(res.body()!!))
+                            } else {
+                                Toast.makeText(context, "Không thể tải hồ sơ", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "Lỗi kết nối", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun rememberOrgViewModel(): OrganizationViewModel {
+    val repo = OrganizationRepository(NetworkClient.orgApi)
+    return viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return OrganizationViewModel(repo) as T
+            }
+        }
+    )
 }

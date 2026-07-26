@@ -50,9 +50,24 @@ fun PostPetScreen(
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("DOGS") }
+    var isVaccinated by remember { mutableStateOf(false) }
+    var isNeutered by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     
     var isLoading by remember { mutableStateOf(false) }
+    var myOrg by remember { mutableStateOf<com.example.petmate.model.OrganizationProfileDto?>(null) }
+    var postAsOrg by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = NetworkClient.orgApi.getMyOrg()
+            if (response.isSuccessful) {
+                myOrg = response.body()
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri
@@ -79,6 +94,27 @@ fun PostPetScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (myOrg != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Đăng dưới danh nghĩa Tổ chức", fontWeight = FontWeight.Bold)
+                            Text(myOrg?.name ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
+                        Switch(checked = postAsOrg, onCheckedChange = { postAsOrg = it })
+                    }
+                }
+            }
+            
             // Image Picker
             Box(
                 modifier = Modifier
@@ -111,6 +147,15 @@ fun PostPetScreen(
             OutlinedTextField(value = age, onValueChange = { age = it }, label = { Text("Tuổi") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Cân nặng") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Mô tả chi tiết") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+            
+            // Health statuses
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = isVaccinated, onCheckedChange = { isVaccinated = it })
+                Text("Đã tiêm phòng")
+                Spacer(modifier = Modifier.width(16.dp))
+                Checkbox(checked = isNeutered, onCheckedChange = { isNeutered = it })
+                Text("Đã triệt sản")
+            }
             
             // Category Selection
             Text("Danh mục", fontWeight = FontWeight.Bold)
@@ -152,18 +197,21 @@ fun PostPetScreen(
             
             Button(
                 onClick = {
-                    if (name.isBlank() || breed.isBlank()) {
-                        Toast.makeText(context, "Vui lòng nhập tên và giống!", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
                     isLoading = true
                     coroutineScope.launch {
                         try {
                             val dto = PetRequest(
                                 name = name, breed = breed, age = age, weight = weight,
-                                gender = gender, description = description,
+                                gender = when (gender) {
+                                    "Cái" -> "FEMALE"
+                                    "Không rõ" -> "UNKNOWN"
+                                    else -> "MALE"
+                                }, description = description,
                                 price = if (price.isBlank()) "Miễn phí" else price,
-                                category = category, status = "AVAILABLE"
+                                category = category, status = "AVAILABLE",
+                                isVaccinated = isVaccinated,
+                                isNeutered = isNeutered,
+                                organizationId = if (postAsOrg) myOrg?.id else null
                             )
                             val createdPet = NetworkClient.apiService.createPet(dto)
                             
@@ -183,6 +231,15 @@ fun PostPetScreen(
                             
                             Toast.makeText(context, "Đăng tin thành công! Tin của bạn đang chờ Admin duyệt.", Toast.LENGTH_LONG).show()
                             onPostSuccess()
+                        } catch (e: retrofit2.HttpException) {
+                            e.printStackTrace()
+                            val errorBody = e.response()?.errorBody()?.string()
+                            val errorMessage = try {
+                                org.json.JSONObject(errorBody ?: "").getString("message")
+                            } catch (ex: Exception) {
+                                e.message()
+                            }
+                            Toast.makeText(context, "Lỗi: $errorMessage", Toast.LENGTH_LONG).show()
                         } catch (e: Exception) {
                             e.printStackTrace()
                             Toast.makeText(context, "Lỗi: ${e.message}", Toast.LENGTH_LONG).show()

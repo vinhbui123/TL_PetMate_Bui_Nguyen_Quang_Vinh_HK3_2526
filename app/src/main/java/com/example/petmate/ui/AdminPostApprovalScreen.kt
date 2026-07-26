@@ -202,7 +202,7 @@ fun PendingPetCard(pet: Pet, onStatusChange: (String) -> Unit) {
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(pet.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(pet.name ?: "Chưa có tên", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text("Giống: ${pet.breed} - Tuổi: ${pet.age}", fontSize = 14.sp, color = Color.Gray)
                     Text(
                         text = if ((pet.price?.toDoubleOrNull() ?: 0.0) > 0) formatter.format(pet.price?.toDoubleOrNull() ?: 0.0) else "Miễn phí (Nhận nuôi)",
@@ -296,7 +296,7 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(pet.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(pet.name ?: "Chưa có tên", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text("Giống: ${pet.breed} - Tuổi: ${pet.age}", fontSize = 14.sp, color = Color.Gray)
                     Text(
                         text = if ((pet.price?.toDoubleOrNull() ?: 0.0) > 0) formatter.format(pet.price?.toDoubleOrNull() ?: 0.0) else "Miễn phí (Nhận nuôi)",

@@ -17,5 +17,6 @@ data class User(
     val longitude: Double? = null,
     val averageRating: Double? = 0.0,
     val ratingCount: Int? = 0,
+    val violationCount: Int? = 0,
     val lastActiveAt: String? = null
 )

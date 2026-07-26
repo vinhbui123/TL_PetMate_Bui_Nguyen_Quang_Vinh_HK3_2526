@@ -5,10 +5,12 @@ import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
 import android.os.Looper
 import android.util.Log
+import java.util.Locale
 import androidx.core.content.ContextCompat.checkSelfPermission
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -129,6 +131,38 @@ object LocationHelper {
             Location.distanceBetween(userLat, userLng, petLat, petLng, results)
             results[0] / 1000f // Chuyển sang km
         } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun geocodeAddress(context: Context, address: String): Pair<Double, Double>? {
+        if (address.isBlank()) return null
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses = geocoder.getFromLocationName(address, 1)
+            if (!addresses.isNullOrEmpty()) {
+                val location = addresses[0]
+                Pair(location.latitude, location.longitude)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun getAddressFromLocation(context: Context, latitude: Double, longitude: Double): String? {
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+            if (!addresses.isNullOrEmpty()) {
+                addresses[0].getAddressLine(0)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }

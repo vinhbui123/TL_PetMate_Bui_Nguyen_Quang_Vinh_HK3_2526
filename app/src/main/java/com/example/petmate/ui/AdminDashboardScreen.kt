@@ -28,6 +28,8 @@ fun AdminDashboardScreen(
     onNavigateToPostApproval: () -> Unit = {},
     onNavigateToBroadcast: () -> Unit = {},
     onNavigateToReports: () -> Unit = {},
+    onNavigateToLogs: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {},
     onFeatureNotReady: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
@@ -99,10 +101,10 @@ fun AdminDashboardScreen(
                 }
                 item {
                     DashboardCard(
-                        title = "Tiếp nhận Báo cáo",
-                        icon = Icons.Default.Inbox,
+                        title = "Nhật ký Hệ thống",
+                        icon = Icons.Default.FormatListBulleted,
                         color = Color(0xFF9C27B0), // Purple
-                        onClick = onFeatureNotReady
+                        onClick = onNavigateToLogs
                     )
                 }
                 item {
@@ -118,7 +120,7 @@ fun AdminDashboardScreen(
                         title = "Thống kê & Báo cáo",
                         icon = Icons.Default.PieChart,
                         color = Color(0xFF607D8B), // Blue Grey
-                        onClick = onFeatureNotReady
+                        onClick = onNavigateToStats
                     )
                 }
             }
