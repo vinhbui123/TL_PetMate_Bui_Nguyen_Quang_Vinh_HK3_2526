@@ -25,4 +25,9 @@ public interface UserRatingRepository extends JpaRepository<UserRating, Long> {
     List<Object[]> countByRatedUserIdGroupByScore(@Param("ratedUserId") Long ratedUserId);
 
     boolean existsByRaterIdAndRatedUserId(Long raterId, Long ratedUserId);
+
+    @Query("SELECT AVG(r.score) FROM UserRating r")
+    Double getSystemAverageScore();
+
+    List<UserRating> findByRatedUserId(Long ratedUserId);
 }

@@ -1,0 +1,2 @@
+ALTER TABLE organization_members
+ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE';

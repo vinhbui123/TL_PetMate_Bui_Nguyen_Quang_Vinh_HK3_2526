@@ -41,9 +41,9 @@ public class PetService {
 
     public List<Pet> getAllPets(String category) {
         if (category != null && !category.isEmpty()) {
-            return petRepository.findByCategoryAndStatus(category, AdStatus.AVAILABLE);
+            return petRepository.findByCategoryAndStatusOrderByLikeCountDesc(category, AdStatus.AVAILABLE);
         }
-        return petRepository.findByStatus(AdStatus.AVAILABLE);
+        return petRepository.findByStatusOrderByLikeCountDesc(AdStatus.AVAILABLE);
     }
 
     public Pet getPetById(Long id) {
@@ -121,7 +121,7 @@ public class PetService {
         if (user.getRole() != RoleType.ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Từ chối truy cập");
         }
-        return petRepository.findByStatus(AdStatus.PENDING);
+        return petRepository.findByStatusOrderByLikeCountDesc(AdStatus.PENDING);
     }
 
     public List<Pet> getAdminAllPets(Jwt jwt) {

@@ -114,6 +114,29 @@ public class OrganizationController {
         } catch (ResponseStatusException e) { throw e; }
     }
 
+    @PostMapping("/{id}/members/{memberId}/accept")
+    public ResponseEntity<OrgMemberDto> acceptInvitation(@AuthenticationPrincipal Jwt jwt,
+                                                         @PathVariable Long id,
+                                                         @PathVariable Long memberId) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            User user = userService.getCurrentUserAndUpdateActivity(jwt);
+            return ResponseEntity.ok(organizationService.acceptInvitation(id, memberId, user.getId()));
+        } catch (ResponseStatusException e) { throw e; }
+    }
+
+    @PostMapping("/{id}/members/{memberId}/reject")
+    public ResponseEntity<Void> rejectInvitation(@AuthenticationPrincipal Jwt jwt,
+                                                 @PathVariable Long id,
+                                                 @PathVariable Long memberId) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            User user = userService.getCurrentUserAndUpdateActivity(jwt);
+            organizationService.rejectInvitation(id, memberId, user.getId());
+            return ResponseEntity.ok().build();
+        } catch (ResponseStatusException e) { throw e; }
+    }
+
     @DeleteMapping("/{id}/members/{memberId}")
     public ResponseEntity<Void> removeMember(@AuthenticationPrincipal Jwt jwt,
                                              @PathVariable Long id,

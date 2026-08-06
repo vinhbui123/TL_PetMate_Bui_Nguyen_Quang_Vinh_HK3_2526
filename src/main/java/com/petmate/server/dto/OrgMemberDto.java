@@ -10,4 +10,5 @@ public class OrgMemberDto {
     private String userEmail;
     private String userAvatarUrl;
     private String memberRole;
+    private String status;
 }

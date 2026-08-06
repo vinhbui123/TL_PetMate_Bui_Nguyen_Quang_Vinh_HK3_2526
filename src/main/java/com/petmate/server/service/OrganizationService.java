@@ -317,13 +317,46 @@ public class OrganizationService {
                 .organization(org)
                 .user(invitee)
                 .memberRole(OrgMemberRole.valueOf(inviteDto.getMemberRole()))
+                .status(com.petmate.server.enums.OrgMemberStatus.PENDING)
                 .invitedBy(inviterUserId)
                 .build();
                 
         member = memberRepository.save(member);
         
-        sendNotification(invitee.getId(), "Bạn đã được mời", "Bạn vừa được thêm vào tổ chức " + org.getName());
+        try {
+            firebaseService.sendNotification(
+                invitee.getId(), 
+                "Lời mời tham gia Trạm cứu hộ", 
+                "Bạn nhận được lời mời tham gia " + org.getName(), 
+                java.util.Map.of("type", "org_invite", "orgId", orgId.toString(), "memberId", member.getId().toString())
+            );
+        } catch (Exception e) {}
+        
         return toMemberDto(member);
+    }
+
+    public OrgMemberDto acceptInvitation(Long orgId, Long memberId, Long userId) {
+        OrganizationMember member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên"));
+        
+        if (!member.getOrganization().getId().equals(orgId) || !member.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không có quyền thực hiện thao tác này");
+        }
+        
+        member.setStatus(com.petmate.server.enums.OrgMemberStatus.ACTIVE);
+        member = memberRepository.save(member);
+        return toMemberDto(member);
+    }
+
+    public void rejectInvitation(Long orgId, Long memberId, Long userId) {
+        OrganizationMember member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên"));
+        
+        if (!member.getOrganization().getId().equals(orgId) || !member.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Không có quyền thực hiện thao tác này");
+        }
+        
+        memberRepository.delete(member);
     }
 
     public void removeMember(Long orgId, Long ownerUserId, Long memberId) {
@@ -340,6 +373,14 @@ public class OrganizationService {
         if (member.getUser().getId().equals(ownerUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể xóa chủ sở hữu trạm");
         }
+        try {
+            firebaseService.sendNotification(
+                member.getUser().getId(),
+                "Thông báo từ Trạm cứu hộ",
+                "Bạn đã bị xóa khỏi tổ chức " + org.getName(),
+                null
+            );
+        } catch (Exception e) {}
         
         memberRepository.delete(member);
     }
@@ -426,6 +467,7 @@ public class OrganizationService {
         dto.setUserEmail(member.getUser().getEmail());
         dto.setUserAvatarUrl(member.getUser().getAvatarUrl());
         dto.setMemberRole(member.getMemberRole().name());
+        dto.setStatus(member.getStatus().name());
         return dto;
     }
     

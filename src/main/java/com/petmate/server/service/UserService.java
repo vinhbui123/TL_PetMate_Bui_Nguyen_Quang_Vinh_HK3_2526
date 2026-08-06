@@ -2,6 +2,7 @@ package com.petmate.server.service;
 
 import java.time.Instant;
 
+import com.petmate.server.dto.ChangePasswordDto;
 import com.petmate.server.dto.RatingRequestDto;
 import com.petmate.server.dto.RatingResponseDto;
 import com.petmate.server.dto.SellerRatingSummaryDto;
@@ -26,6 +27,11 @@ import com.petmate.server.repository.UserBlockRepository;
 import com.petmate.server.repository.UserFollowRepository;
 import com.petmate.server.repository.UserRatingRepository;
 import com.petmate.server.repository.UserRepository;
+
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.UserRecord;
+import com.google.firebase.auth.UserRecord.UpdateRequest;
 
 import lombok.RequiredArgsConstructor;
 
@@ -111,7 +117,9 @@ public class UserService {
 
         Map<String, String> safeBody = Optional.ofNullable(body).orElse(new HashMap<>());
         
-        String email = extractValidString(jwt.getClaimAsString("email"), identitiesEmail, safeBody.get("email"), provider + "_" + uid + "@petmate.com");
+        String realEmail = extractValidString(jwt.getClaimAsString("email"), identitiesEmail, safeBody.get("email"));
+        String fallbackEmail = provider + "_" + uid + "@petmate.com";
+        String email = realEmail != null ? realEmail : fallbackEmail;
         String name = extractValidString(jwt.getClaimAsString("name"), safeBody.get("fullName"), "Unknown User");
         String avatarUrl = extractValidString(jwt.getClaimAsString("picture"), safeBody.get("avatarUrl"));
 
@@ -142,7 +150,11 @@ public class UserService {
 
         Optional.ofNullable(provider).ifPresent(user::setProvider);
         Optional.ofNullable(name).ifPresent(user::setFullName);
-        Optional.ofNullable(email).ifPresent(user::setEmail);
+        // Only update email if we have a REAL email (not fallback)
+        // This prevents overwriting a real email with a fake fallback on re-login
+        if (realEmail != null) {
+            user.setEmail(realEmail);
+        }
         
         // Update avatar only if not present
         if (user.getAvatarUrl() == null || user.getAvatarUrl().trim().isEmpty()) {
@@ -167,6 +179,7 @@ public class UserService {
         Optional.ofNullable(dto.getPhone()).ifPresent(user::setPhone);
         Optional.ofNullable(dto.getAddress()).ifPresent(user::setAddress);
         Optional.ofNullable(dto.getAvatarUrl()).ifPresent(user::setAvatarUrl);
+        Optional.ofNullable(dto.getCccd()).ifPresent(user::setCccd);
         return userRepository.save(user);
     }
 
@@ -365,6 +378,10 @@ public class UserService {
         
         ratedUser.setAverageRating(Math.round(newAvg * 10.0) / 10.0);
         ratedUser.setRatingCount(newCount);
+        
+        Double systemAvg = Optional.ofNullable(userRatingRepository.getSystemAverageScore()).orElse(5.0);
+        calculateAndSaveTrustScore(ratedUser, systemAvg);
+        
         userRepository.save(ratedUser);
         
         return mapToRatingResponseDto(rating);
@@ -388,6 +405,48 @@ public class UserService {
             dto.setPetImageUrl(rating.getPet().getImageUrl());
         }
         return dto;
+    }
+
+    public void calculateAndSaveTrustScore(User user, Double systemAverageM) {
+        List<UserRating> ratings = userRatingRepository.findByRatedUserId(user.getId());
+        Double m = systemAverageM != null ? systemAverageM : 5.0;
+        if (m.isNaN() || m == 0.0) m = 5.0; // fallback if no ratings in system at all
+        
+        if (ratings.isEmpty()) {
+            user.setTrustScore(m);
+            return;
+        }
+
+        double sumRw = 0.0;
+        double sumW = 0.0;
+        double lambda = Math.log(2) / 180.0;
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+        for (UserRating rating : ratings) {
+            double r_i = rating.getScore();
+            long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(rating.getCreatedAt(), now);
+            if (daysBetween < 0) daysBetween = 0;
+            
+            double w_time = Math.exp(-lambda * daysBetween);
+            
+            double w_verify = 0.5;
+            User rater = rating.getRater();
+            if (rater.isIdentityVerified()) {
+                w_verify = 1.5;
+            } else if (rater.getProvider() != null && !rater.getProvider().equals("local")) {
+                w_verify = 1.0;
+            }
+            
+            double w_i = w_time * w_verify;
+            sumRw += r_i * w_i;
+            sumW += w_i;
+        }
+
+        double C = 5.0;
+        double sFinal = (C * m + sumRw) / (C + sumW);
+        sFinal = Math.round(sFinal * 100.0) / 100.0; // round to 2 decimal places
+        
+        user.setTrustScore(sFinal);
     }
 
     public SellerRatingSummaryDto getSellerRatingSummary(Jwt jwt, Long sellerId) {
@@ -436,6 +495,7 @@ public class UserService {
                 .sellerId(seller.getId())
                 .sellerName(seller.getFullName())
                 .averageRating(seller.getAverageRating())
+                .trustScore(seller.getTrustScore() != null ? seller.getTrustScore() : seller.getAverageRating())
                 .totalReviews(seller.getRatingCount())
                 .ratingDistribution(distribution)
                 .currentUserHasRated(currentUserHasRated)
@@ -479,6 +539,51 @@ public class UserService {
             ratedUser.setAverageRating(Math.round(newAvg * 10.0) / 10.0);
             ratedUser.setRatingCount(newCount);
             userRepository.save(ratedUser);
+        }
+    }
+
+    /**
+     * Change password for users who registered with email/password provider.
+     * Uses Firebase Admin SDK to update the user's password.
+     */
+    public void changePassword(Jwt jwt, ChangePasswordDto dto) {
+        // Validate that new password matches confirm password
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới và xác nhận mật khẩu không khớp");
+        }
+
+        // Validate that new password is different from current password
+        if (dto.getCurrentPassword().equals(dto.getNewPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải khác mật khẩu hiện tại");
+        }
+
+        User user = getCurrentUserOrThrow(jwt);
+        String uid = jwt.getSubject();
+
+        // Check if user is using password provider (email/password login)
+        Map<String, Object> firebaseClaim = Optional.ofNullable(jwt.getClaimAsMap("firebase")).orElse(new HashMap<>());
+        String provider = (String) firebaseClaim.get("sign_in_provider");
+
+        if (provider == null || !provider.equals("password")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+                "Chỉ người dùng đăng ký bằng email/mật khẩu mới có thể đổi mật khẩu. " +
+                "Người dùng đăng nhập bằng mạng xã hội vui lòng đổi mật khẩu qua nhà cung cấp tương ứng.");
+        }
+
+        try {
+            // Update password in Firebase using Admin SDK
+            UpdateRequest request = new UpdateRequest(uid)
+                    .setPassword(dto.getNewPassword());
+
+            FirebaseAuth.getInstance().updateUser(request);
+
+            // Revoke all tokens to force re-login with new password
+            user.setTokensValidAfter(Instant.now());
+            userRepository.save(user);
+
+        } catch (FirebaseAuthException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, 
+                "Lỗi khi cập nhật mật khẩu: " + e.getMessage());
         }
     }
 }

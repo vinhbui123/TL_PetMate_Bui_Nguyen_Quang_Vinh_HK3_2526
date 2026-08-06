@@ -1,5 +1,6 @@
 package com.petmate.server.controller;
 
+import com.petmate.server.dto.ChangePasswordDto;
 import com.petmate.server.dto.RatingRequestDto;
 import com.petmate.server.dto.RatingResponseDto;
 import com.petmate.server.dto.SellerRatingSummaryDto;
@@ -284,6 +285,19 @@ public class UserController {
             return ResponseEntity.ok().build();
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ChangePasswordDto dto) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            userService.changePassword(jwt, dto);
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
         }
     }
 }

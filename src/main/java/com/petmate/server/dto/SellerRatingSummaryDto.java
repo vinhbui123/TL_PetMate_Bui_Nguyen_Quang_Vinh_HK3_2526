@@ -21,4 +21,5 @@ public class SellerRatingSummaryDto {
     private Boolean currentUserHasRated;
     private RatingResponseDto currentUserRating;
     private List<RatingResponseDto> recentReviews;
+    private Double trustScore;
 }

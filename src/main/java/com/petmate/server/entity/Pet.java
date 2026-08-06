@@ -80,7 +80,7 @@ public class Pet {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({"password", "providerId", "provider", "createdAt", "updatedAt"})
+    @JsonIgnoreProperties({"providerId", "provider", "createdAt", "updatedAt"})
     private User user;
 
     @ManyToOne(fetch = FetchType.EAGER)

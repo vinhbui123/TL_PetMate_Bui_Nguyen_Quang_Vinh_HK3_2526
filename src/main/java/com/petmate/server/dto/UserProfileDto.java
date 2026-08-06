@@ -15,4 +15,5 @@ public class UserProfileDto {
     
     private String address;
     private String avatarUrl;
+    private String cccd;
 }

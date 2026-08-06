@@ -35,7 +35,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String password;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -59,6 +58,9 @@ public class User {
 
     private Double latitude;
     private Double longitude;
+    
+    @Column(name = "cccd", length = 20)
+    private String cccd;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false, columnDefinition = "VARCHAR(50)")
@@ -72,6 +74,9 @@ public class User {
     @Column(name = "rating_count")
     @Builder.Default
     private Integer ratingCount = 0;
+
+    @Column(name = "trust_score")
+    private Double trustScore;
 
     @Column(name = "violation_count")
     @Builder.Default
@@ -95,5 +100,10 @@ public class User {
     @PreUpdate
     public void updateLastActive() {
         this.lastActiveAt = LocalDateTime.now();
+    }
+    
+    @Transient
+    public boolean isIdentityVerified() {
+        return cccd != null && !cccd.trim().isEmpty();
     }
 }

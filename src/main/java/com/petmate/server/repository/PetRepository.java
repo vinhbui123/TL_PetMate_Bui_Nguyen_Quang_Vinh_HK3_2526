@@ -13,10 +13,10 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
     List<Pet> findByCategory(String category);
 
     @EntityGraph(attributePaths = {"user"})
-    List<Pet> findByCategoryAndStatus(String category, com.petmate.server.enums.AdStatus status);
+    List<Pet> findByCategoryAndStatusOrderByLikeCountDesc(String category, com.petmate.server.enums.AdStatus status);
 
     @EntityGraph(attributePaths = {"user"})
-    List<Pet> findByStatus(com.petmate.server.enums.AdStatus status);
+    List<Pet> findByStatusOrderByLikeCountDesc(com.petmate.server.enums.AdStatus status);
 
     @EntityGraph(attributePaths = {"user"})
     List<Pet> findByUserId(Long userId);

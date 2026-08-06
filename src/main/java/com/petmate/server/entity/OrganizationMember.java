@@ -41,6 +41,11 @@ public class OrganizationMember {
     @Column(name = "invited_by")
     private Long invitedBy;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'ACTIVE'")
+    @Builder.Default
+    private com.petmate.server.enums.OrgMemberStatus status = com.petmate.server.enums.OrgMemberStatus.ACTIVE;
+
     @CreationTimestamp
     @Column(name = "joined_at", updatable = false)
     private LocalDateTime joinedAt;
