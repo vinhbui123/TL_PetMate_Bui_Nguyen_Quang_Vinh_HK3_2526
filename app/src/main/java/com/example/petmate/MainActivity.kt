@@ -26,12 +26,14 @@ import android.content.Context.LOCATION_SERVICE
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build.VERSION_CODES.TIRAMISU
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
+import com.example.petmate.util.AppEventBus
 import com.facebook.login.LoginManager
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
@@ -237,6 +239,9 @@ fun MainContent(onLogout: () -> Unit) {
 
                     // Register FCM Token - lấy token mới nhất và gửi lên Server
                     try {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            com.google.firebase.messaging.FirebaseMessaging.getInstance().deleteToken()
+                        }
                         val token = com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await()
                         android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
                         NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
@@ -292,14 +297,14 @@ fun MainContent(onLogout: () -> Unit) {
 
     // Lắng nghe sự kiện Push Notification (FCM) để cập nhật UI tức thời
     LaunchedEffect(Unit) {
-        com.example.petmate.util.AppEventBus.refreshEvents.collect {
+       AppEventBus.refreshEvents.collect {
             refreshTrigger++
         }
     }
 
     // Lắng nghe tin nhắn WebSocket (Chat) để cập nhật UI tức thời
     LaunchedEffect(Unit) {
-        com.example.petmate.network.ChatWebSocketManager.incomingMessages.collect {
+       ChatWebSocketManager.incomingMessages.collect {
             refreshTrigger++
         }
     }
