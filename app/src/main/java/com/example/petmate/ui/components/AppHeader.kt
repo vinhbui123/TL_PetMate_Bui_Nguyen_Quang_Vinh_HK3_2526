@@ -141,27 +141,39 @@ fun AppHeader(
         if (currentUser != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.clickable { onNotificationsClick() }.padding(end = 16.dp),
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onNotificationsClick() }
+                        .padding(end = 16.dp)
+                        .padding(4.dp),
                     contentAlignment = Alignment.TopEnd
                 ) {
                     Icon(
                         Icons.Default.Notifications,
-                        contentDescription = "Notifications",
+                        contentDescription = "Thông báo",
                         tint = TextGray,
                         modifier = Modifier.size(28.dp)
                     )
                     if (unreadCount > 0) {
                         Surface(
                             shape = CircleShape,
-                            color = Color.Red,
-                            modifier = Modifier.size(16.dp).offset(x = 4.dp, y = (-4).dp)
+                            color = Color(0xFFE53935),
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                                .offset(x = 8.dp, y = (-5).dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
                                     color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 9.sp,
+                                    lineHeight = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
                                 )
                             }
                         }
