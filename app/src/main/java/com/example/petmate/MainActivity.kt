@@ -235,10 +235,9 @@ fun MainContent(onLogout: () -> Unit) {
                     // Get Blocked Users
                     blockedUserIds = NetworkClient.apiService.getBlockedUsers()
 
-                    // Register FCM Token - Ép xóa token cũ (có thể bị cache sai project) rồi xin mới
+                    // Register FCM Token - lấy token mới nhất và gửi lên Server
                     try {
-                        FirebaseMessaging.getInstance().deleteToken().await()
-                        val token = FirebaseMessaging.getInstance().token.await()
+                        val token = com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await()
                         android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
                         NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
                     } catch (e: Exception) {
