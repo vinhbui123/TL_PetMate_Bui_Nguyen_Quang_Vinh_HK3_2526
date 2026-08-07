@@ -1,3 +1,4 @@
+# Dont upload this file to github
 spring:
   application:
     name: petAppServer
@@ -20,6 +21,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    repair-on-migrate: true
 
   security:
     oauth2:
@@ -41,7 +43,7 @@ firebase:
 
 groq:
   api:
-    key: ${GROQ_API_KEY:your_api_key_here}
+    key: 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
     url: https://api.groq.com/openai/v1/chat/completions
   model:
     id: openai/gpt-oss-120b

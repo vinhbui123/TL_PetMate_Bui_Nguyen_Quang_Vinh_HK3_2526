@@ -27,6 +27,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
     private final PetRepository petRepository;
+    private final ProfanityFilterService profanityFilterService;
 
     @Transactional
     public ChatRoomResponse getOrCreateRoom(Long buyerId, Long sellerId, Long petId) {
@@ -93,7 +94,7 @@ public class ChatService {
         ChatMessage message = ChatMessage.builder()
                 .room(room)
                 .sender(sender)
-                .content(payload.getContent())
+                .content(profanityFilterService.filter(payload.getContent()))
                 .build();
         
         message = chatMessageRepository.save(message);

@@ -36,4 +36,7 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
     long countByOrganization_Id(Long orgId);
     
     long countByOrganization_IdAndStatus(Long orgId, com.petmate.server.enums.AdStatus status);
+
+    @EntityGraph(attributePaths = {"user"})
+    List<Pet> findByNameInIgnoreCase(List<String> names);
 }
