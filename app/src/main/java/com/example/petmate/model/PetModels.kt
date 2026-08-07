@@ -23,7 +23,8 @@ data class PetUser(
     val trustScore: Double? = null,
     val ratingCount: Int? = 0,    
     val violationCount: Int? = 0,    
-    val lastActiveAt: String? = null
+    val lastActiveAt: String? = null,
+    val identityVerified: Boolean = false
 )
 
 @Immutable

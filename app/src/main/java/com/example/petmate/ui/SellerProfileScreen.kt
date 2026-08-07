@@ -39,6 +39,7 @@ import com.example.petmate.model.Pet
 import com.example.petmate.model.PetUser
 import com.example.petmate.network.NetworkClient
 import com.example.petmate.ui.components.MarketItemCard
+import com.example.petmate.ui.components.VerifiedBadge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,6 +212,10 @@ fun SellerProfileScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black
                             )
+                            if (sellerInfo?.identityVerified == true) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                VerifiedBadge(size = 20.dp)
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(

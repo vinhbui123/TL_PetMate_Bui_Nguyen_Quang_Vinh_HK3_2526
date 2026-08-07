@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.petmate.model.Pet
 import com.example.petmate.ui.theme.*
+import com.example.petmate.ui.components.VerifiedBadge
 import com.example.petmate.util.LocationHelper
 import com.example.petmate.util.TimeHelper
 
@@ -76,6 +77,14 @@ fun MarketItemCard(
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.padding(6.dp).size(14.dp)
+                    )
+                }
+                
+                // Blue verification tick for identity-verified individual sellers
+                if (!isOrg && item.user?.identityVerified == true) {
+                    VerifiedBadge(
+                        size = 20.dp,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
                     )
                 }
             }

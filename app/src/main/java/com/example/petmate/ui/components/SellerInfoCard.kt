@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import coil.compose.AsyncImage
 import com.example.petmate.R
 import com.example.petmate.model.PetUser
 import com.example.petmate.model.SellerRatingSummary
+import com.example.petmate.ui.components.VerifiedBadge
 
 @Composable
 fun SellerInfoCard(
@@ -87,14 +89,20 @@ fun SellerInfoCard(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     
+                    // Blue verification tick for identity-verified individuals (CCCD)
+                    if (seller?.identityVerified == true) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        VerifiedBadge(size = 18.dp)
+                    }
+
                     val isHighlyTrusted = (seller?.trustScore ?: 0.0) >= 4.5
                     if (isHighlyTrusted) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Tài khoản uy tín",
-                            tint = Color(0xFF1D9BF0), // Blue checkmark color
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFF1D9BF0),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
 

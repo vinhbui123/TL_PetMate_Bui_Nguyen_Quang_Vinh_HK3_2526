@@ -20,5 +20,6 @@ data class User(
     val violationCount: Int? = 0,
     val trustScore: Double? = null,
     val cccd: String? = null,
-    val lastActiveAt: String? = null
+    val lastActiveAt: String? = null,
+    val identityVerified: Boolean = false
 )

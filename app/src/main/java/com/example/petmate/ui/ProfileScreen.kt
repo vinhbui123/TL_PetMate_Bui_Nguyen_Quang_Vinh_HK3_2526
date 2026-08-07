@@ -47,6 +47,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import com.example.petmate.ui.components.VerifiedBadge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -218,6 +219,24 @@ fun ProfileScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                // Identity verified badge
+                if (user?.identityVerified == true) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        VerifiedBadge(size = 18.dp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Tài khoản đã xác minh",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1D9BF0)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 
                 // Followers/Following
                 Row(
