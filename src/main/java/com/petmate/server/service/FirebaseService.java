@@ -47,10 +47,8 @@ public class FirebaseService {
                     .putData("senderId", String.valueOf(message.getSenderId()))
                     .putData("senderName", senderName)
                     .putData("content", message.getContent())
-                    .setNotification(Notification.builder()
-                            .setTitle(senderName)
-                            .setBody(message.getContent())
-                            .build())
+                    .putData("title", senderName)
+                    .putData("body", message.getContent())
                     .build();
 
             BatchResponse response = firebaseMessaging.sendEachForMulticastAsync(firebaseMessage).get();
@@ -83,10 +81,8 @@ public class FirebaseService {
 
             MulticastMessage.Builder messageBuilder = MulticastMessage.builder()
                     .addAllTokens(deviceTokens)
-                    .setNotification(Notification.builder()
-                            .setTitle(title)
-                            .setBody(body)
-                            .build());
+                    .putData("title", title)
+                    .putData("body", body);
 
             if (data != null && !data.isEmpty()) {
                 messageBuilder.putAllData(data);
@@ -131,10 +127,8 @@ public class FirebaseService {
 
                 MulticastMessage message = MulticastMessage.builder()
                         .addAllTokens(batchTokens)
-                        .setNotification(Notification.builder()
-                                .setTitle(title)
-                                .setBody(body)
-                                .build())
+                        .putData("title", title)
+                        .putData("body", body)
                         .putData("type", "broadcast")
                         .build();
                         
