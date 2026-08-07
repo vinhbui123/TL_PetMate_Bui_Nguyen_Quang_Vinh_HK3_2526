@@ -78,10 +78,14 @@ fun PetMateApp() {
             val scope = rememberCoroutineScope()
             MainContent(onLogout = { 
                 scope.launch {
-                    // 1. Sign out from Firebase
+                    // 1. Remove ALL FCM tokens for this user from server (robust against token mismatch)
                     try {
-                        val token = FirebaseMessaging.getInstance().token.await()
-                        NetworkClient.apiService.removeFcmToken(token)
+ val resp = NetworkClient.apiService.removeAllFcmTokens()
+                        if (!resp.isSuccessful) {
+                            android.util.Log.w("LOGOUT", "removeAllFcmTokens failed: HTTP ${resp.code()}")
+                        }
+                        // Delete the device token locally so a fresh one is generated on next login
+                        FirebaseMessaging.getInstance().deleteToken().await()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -235,11 +239,10 @@ fun MainContent(onLogout: () -> Unit) {
                     // Get Blocked Users
                     blockedUserIds = NetworkClient.apiService.getBlockedUsers()
 
-                    // Register FCM Token - Ép xóa token cũ (có thể bị cache sai project) rồi xin mới
+                    // Register FCM Token - get current token and register with server
                     try {
-                        FirebaseMessaging.getInstance().deleteToken().await()
                         val token = FirebaseMessaging.getInstance().token.await()
-                        android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
+                        android.util.Log.d("FCM_DEBUG", "FCM Token: $token")
                         NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
                     } catch (e: Exception) {
                         e.printStackTrace()

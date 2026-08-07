@@ -42,6 +42,9 @@ interface ApiService {
     @DELETE("user/fcm-token")
     suspend fun removeFcmToken(@Query("token") token: String): Response<Unit>
     
+    @DELETE("user/fcm-token/all")
+    suspend fun removeAllFcmTokens(): Response<Unit>
+    
     @GET("user/me")
     suspend fun getProfile(): User
     

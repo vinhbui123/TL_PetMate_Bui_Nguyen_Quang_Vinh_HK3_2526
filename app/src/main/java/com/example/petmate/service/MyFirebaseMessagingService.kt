@@ -13,9 +13,15 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.petmate.MainActivity
+import com.example.petmate.network.NetworkClient
 import com.example.petmate.util.NotificationStorage
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -25,9 +31,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val CHANNEL_NAME = "PetMate Thông báo"
     }
 
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "New token: $token")
+        Log.d(TAG, "New FCM token: $token")
+
+        // Register the new token with the server so broadcasts/chat notifications work
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        if (firebaseUser != null) {
+            serviceScope.launch {
+                try {
+                    NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
+                    Log.d(TAG, "New FCM token registered with server")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to register new FCM token with server", e)
+                }
+            }
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
