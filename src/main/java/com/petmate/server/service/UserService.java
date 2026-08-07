@@ -219,13 +219,16 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "NgÆ°á»i dÃ¹ng khÃ´ng pháº£i lÃ  thÃ nh viÃªn"));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void registerFcmToken(Jwt jwt, Map<String, String> body) {
         User user = getCurrentUserOrThrow(jwt);
-        Optional.ofNullable(body.get("token"))
-                .filter(token -> !token.trim().isEmpty())
-                .map(token -> DeviceToken.builder().token(token).user(user).build())
-                .ifPresentOrElse(deviceTokenRepository::save, 
-                        () -> { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiáº¿u token xÃ¡c thá»±c"); });
+        String token = body.get("token");
+        if (token == null || token.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiếu token xác thực");
+        }
+        // Xóa tất cả token cũ của user này trước khi lưu token mới
+        deviceTokenRepository.deleteByUserId(user.getId());
+        deviceTokenRepository.save(DeviceToken.builder().token(token).user(user).build());
         touchLastActive(user);
         userRepository.save(user);
     }
