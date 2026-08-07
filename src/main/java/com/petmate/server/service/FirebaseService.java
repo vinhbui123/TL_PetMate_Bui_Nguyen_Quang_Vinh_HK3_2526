@@ -2,6 +2,8 @@ package com.petmate.server.service;
 
 import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
 import com.petmate.server.dto.MessageResponse;
@@ -25,6 +27,16 @@ public class FirebaseService {
     private final DeviceTokenRepository deviceTokenRepository;
     private final UserRepository userRepository;
 
+    /**
+     * Only delete token if Firebase explicitly says it's unregistered/invalid.
+     * Other errors (network, server, etc.) should NOT cause token deletion.
+     */
+    private boolean shouldDeleteToken(FirebaseMessagingException ex) {
+        if (ex == null || ex.getMessagingErrorCode() == null) return false;
+        MessagingErrorCode code = ex.getMessagingErrorCode();
+        return code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT;
+    }
+
     public void sendChatMessageNotification(MessageResponse message, Long recipientId) {
         try {
             List<String> deviceTokens = deviceTokenRepository.findByUserId(recipientId).stream()
@@ -41,6 +53,10 @@ public class FirebaseService {
 
             MulticastMessage firebaseMessage = MulticastMessage.builder()
                     .addAllTokens(deviceTokens)
+                    .setNotification(Notification.builder()
+                            .setTitle(senderName)
+                            .setBody(message.getContent())
+                            .build())
                     .putData("type", "message")
                     .putData("messageId", String.valueOf(message.getId()))
                     .putData("roomId", String.valueOf(message.getRoomId()))
@@ -52,14 +68,20 @@ public class FirebaseService {
                     .build();
 
             BatchResponse response = firebaseMessaging.sendEachForMulticastAsync(firebaseMessage).get();
-            
-            // Clean up invalid tokens
+            log.info("[Chat] FCM result: success={}, failure={}", response.getSuccessCount(), response.getFailureCount());
+
+            // Only clean up truly invalid tokens
             if (response.getFailureCount() > 0) {
                 for (int i = 0; i < response.getResponses().size(); i++) {
                     if (!response.getResponses().get(i).isSuccessful()) {
+                        FirebaseMessagingException ex = response.getResponses().get(i).getException();
                         String failedToken = deviceTokens.get(i);
-                        log.warn("Failed to send message to token: {}. Deleting it.", failedToken);
-                        deviceTokenRepository.deleteById(failedToken);
+                        log.warn("[Chat] Token failed: {} - Error: {}", failedToken,
+                                ex != null ? ex.getMessagingErrorCode() + ": " + ex.getMessage() : "unknown");
+                        if (shouldDeleteToken(ex)) {
+                            log.info("[Chat] Deleting invalid token: {}", failedToken);
+                            deviceTokenRepository.deleteById(failedToken);
+                        }
                     }
                 }
             }
@@ -81,6 +103,10 @@ public class FirebaseService {
 
             MulticastMessage.Builder messageBuilder = MulticastMessage.builder()
                     .addAllTokens(deviceTokens)
+                    .setNotification(Notification.builder()
+                            .setTitle(title)
+                            .setBody(body)
+                            .build())
                     .putData("title", title)
                     .putData("body", body);
 
@@ -89,14 +115,19 @@ public class FirebaseService {
             }
 
             BatchResponse response = firebaseMessaging.sendEachForMulticastAsync(messageBuilder.build()).get();
+            log.info("[Notification] FCM result: success={}, failure={}", response.getSuccessCount(), response.getFailureCount());
 
-            // Clean up invalid tokens
             if (response.getFailureCount() > 0) {
                 for (int i = 0; i < response.getResponses().size(); i++) {
                     if (!response.getResponses().get(i).isSuccessful()) {
+                        FirebaseMessagingException ex = response.getResponses().get(i).getException();
                         String failedToken = deviceTokens.get(i);
-                        log.warn("Failed to send notification to token: {}. Deleting it.", failedToken);
-                        deviceTokenRepository.deleteById(failedToken);
+                        log.warn("[Notification] Token failed: {} - Error: {}", failedToken,
+                                ex != null ? ex.getMessagingErrorCode() + ": " + ex.getMessage() : "unknown");
+                        if (shouldDeleteToken(ex)) {
+                            log.info("[Notification] Deleting invalid token: {}", failedToken);
+                            deviceTokenRepository.deleteById(failedToken);
+                        }
                     }
                 }
             }
@@ -127,21 +158,31 @@ public class FirebaseService {
 
                 MulticastMessage message = MulticastMessage.builder()
                         .addAllTokens(batchTokens)
+                        .setNotification(Notification.builder()
+                                .setTitle(title)
+                                .setBody(body)
+                                .build())
+                        .putData("type", "broadcast")
                         .putData("title", title)
                         .putData("body", body)
-                        .putData("type", "broadcast")
                         .build();
                         
                 BatchResponse response = firebaseMessaging.sendEachForMulticastAsync(message).get();
                 
                 log.info("[Broadcast] Batch result: success={}, failure={}", response.getSuccessCount(), response.getFailureCount());
 
+                // ONLY delete tokens with UNREGISTERED error, NOT all failures
                 if (response.getFailureCount() > 0) {
                     for (int j = 0; j < response.getResponses().size(); j++) {
                         if (!response.getResponses().get(j).isSuccessful()) {
+                            FirebaseMessagingException ex = response.getResponses().get(j).getException();
                             String failedToken = batchTokens.get(j);
-                            log.warn("[Broadcast] Token failed: {} - Error: {}", failedToken, response.getResponses().get(j).getException().getMessage());
-                            deviceTokenRepository.deleteById(failedToken);
+                            log.warn("[Broadcast] Token failed: {} - Error: {}", failedToken,
+                                    ex != null ? ex.getMessagingErrorCode() + ": " + ex.getMessage() : "unknown");
+                            if (shouldDeleteToken(ex)) {
+                                log.info("[Broadcast] Deleting invalid token: {}", failedToken);
+                                deviceTokenRepository.deleteById(failedToken);
+                            }
                         }
                     }
                 }
