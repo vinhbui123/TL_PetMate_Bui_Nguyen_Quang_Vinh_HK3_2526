@@ -126,6 +126,17 @@ public class UserController {
         }
     }
 
+    @DeleteMapping("/fcm-token/all")
+    public ResponseEntity<?> removeAllFcmTokens(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            userService.removeAllFcmTokens(jwt);
+            return ResponseEntity.ok().build();
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
     @DeleteMapping("/account")
     public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal Jwt jwt) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

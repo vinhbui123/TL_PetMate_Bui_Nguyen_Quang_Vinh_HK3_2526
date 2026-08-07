@@ -238,6 +238,12 @@ public class UserService {
         deviceTokenRepository.findById(token).ifPresent(deviceTokenRepository::delete);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void removeAllFcmTokens(Jwt jwt) {
+        User user = getCurrentUserOrThrow(jwt);
+        deviceTokenRepository.deleteByUserId(user.getId());
+    }
+
     public void deleteAccount(Jwt jwt) {
         User user = getCurrentUserOrThrow(jwt);
         user.setStatus(UserStatus.DELETED);
