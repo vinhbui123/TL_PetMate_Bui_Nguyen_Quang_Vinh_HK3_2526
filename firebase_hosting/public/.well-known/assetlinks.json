@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.example.petmate",
+    "sha256_cert_fingerprints": [
+      "0B:CA:E2:9C:19:7C:D2:6F:54:EE:C5:00:C6:B8:37:1B:AF:F5:CD:93:37:CA:5D:EE:8B:56:EA:E5:E6:61:58:23"
+    ]
+  }
+}]

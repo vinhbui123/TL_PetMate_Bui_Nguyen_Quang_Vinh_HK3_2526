@@ -6,5 +6,6 @@ data class OrgMemberDto(
     val userName: String? = null,
     val userEmail: String? = null,
     val userAvatarUrl: String? = null,
-    val memberRole: String? = null
+    val memberRole: String? = null,
+    val status: String? = null
 )

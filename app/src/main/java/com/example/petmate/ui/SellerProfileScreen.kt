@@ -47,6 +47,7 @@ fun SellerProfileScreen(
     sellerInfo: PetUser?, // Passed from the PetDetailsScreen to avoid fetching if possible
     onBack: () -> Unit,
     onPetClick: (Pet) -> Unit,
+    currentUserId: Long? = null,
     userLatitude: Double? = null,
     userLongitude: Double? = null,
     isOrgProfile: Boolean = false,
@@ -54,6 +55,7 @@ fun SellerProfileScreen(
     onBlockStatusChanged: () -> Unit = {},
     onViewFollowers: (Long, Int) -> Unit = { _, _ -> }
 ) {
+    val isSelf = currentUserId != null && currentUserId == sellerId
     var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var ratingSummary by remember { mutableStateOf<SellerRatingSummary?>(null) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -120,37 +122,40 @@ fun SellerProfileScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            if (!isBlocking) {
-                                isBlocking = true
-                                coroutineScope.launch {
-                                    try {
-                                        if (isBlocked) {
-                                            NetworkClient.apiService.unblockUser(sellerId)
-                                            android.widget.Toast.makeText(context, "Đã bỏ chặn người dùng này", android.widget.Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            NetworkClient.apiService.blockUser(sellerId)
-                                            android.widget.Toast.makeText(context, "Đã chặn người dùng này", android.widget.Toast.LENGTH_SHORT).show()
+                    // Chỉ hiện nút Chặn và Báo cáo nếu KHÔNG phải đang xem chính mình
+                    if (!isSelf) {
+                        IconButton(
+                            onClick = {
+                                if (!isBlocking) {
+                                    isBlocking = true
+                                    coroutineScope.launch {
+                                        try {
+                                            if (isBlocked) {
+                                                NetworkClient.apiService.unblockUser(sellerId)
+                                                android.widget.Toast.makeText(context, "Đã bỏ chặn người dùng này", android.widget.Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                NetworkClient.apiService.blockUser(sellerId)
+                                                android.widget.Toast.makeText(context, "Đã chặn người dùng này", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                            onBlockStatusChanged()
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, "Lỗi khi thực hiện thao tác", android.widget.Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isBlocking = false
                                         }
-                                        onBlockStatusChanged()
-                                    } catch (e: Exception) {
-                                        android.widget.Toast.makeText(context, "Lỗi khi thực hiện thao tác", android.widget.Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isBlocking = false
                                     }
                                 }
                             }
+                        ) {
+                            if (isBlocking) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Red, strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Default.Block, contentDescription = "Chặn", tint = if (isBlocked) Color.Red else Color.Gray)
+                            }
                         }
-                    ) {
-                        if (isBlocking) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.Red, strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Default.Block, contentDescription = "Chặn", tint = if (isBlocked) Color.Red else Color.Gray)
+                        IconButton(onClick = { showReportDialog = true }) {
+                            Icon(Icons.Default.Warning, contentDescription = "Báo cáo", tint = Color.Gray)
                         }
-                    }
-                    IconButton(onClick = { showReportDialog = true }) {
-                        Icon(Icons.Default.Warning, contentDescription = "Báo cáo", tint = Color.Gray)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -265,44 +270,54 @@ fun SellerProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Follow Button
-                        Button(
-                            onClick = {
-                                if (isFollowLoading) return@Button
-                                isFollowLoading = true
-                                coroutineScope.launch {
-                                    try {
-                                        if (isFollowing) {
-                                            NetworkClient.apiService.unfollowUser(sellerId)
-                                            isFollowing = false
-                                            followersCount -= 1
-                                        } else {
-                                            NetworkClient.apiService.followUser(sellerId)
-                                            isFollowing = true
-                                            followersCount += 1
+                        // Follow Button - Chỉ hiện nếu KHÔNG phải chính mình
+                        if (!isSelf) {
+                            Button(
+                                onClick = {
+                                    if (isFollowLoading) return@Button
+                                    isFollowLoading = true
+                                    coroutineScope.launch {
+                                        try {
+                                            if (isFollowing) {
+                                                NetworkClient.apiService.unfollowUser(sellerId)
+                                                isFollowing = false
+                                                followersCount -= 1
+                                            } else {
+                                                NetworkClient.apiService.followUser(sellerId)
+                                                isFollowing = true
+                                                followersCount += 1
+                                            }
+                                        } catch (e: retrofit2.HttpException) {
+                                            val errorBody = e.response()?.errorBody()?.string()
+                                            val errorMessage = try {
+                                                org.json.JSONObject(errorBody ?: "").getString("message")
+                                            } catch (ex: Exception) {
+                                                "Lỗi khi thao tác"
+                                            }
+                                            android.widget.Toast.makeText(context, errorMessage, android.widget.Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, "Lỗi khi thao tác", android.widget.Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isFollowLoading = false
                                         }
-                                    } catch (e: Exception) {
-                                        android.widget.Toast.makeText(context, "Lỗi khi thao tác", android.widget.Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isFollowLoading = false
                                     }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isFollowing) Color(0xFFF0F0F0) else com.example.petmate.ui.theme.PrimaryPeach,
+                                    contentColor = if (isFollowing) Color.Black else Color.White
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f).height(44.dp)
+                            ) {
+                                if (isFollowLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
+                                    Text(
+                                        text = if (isFollowing) "Đang theo dõi" else "Theo dõi", 
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFollowing) Color(0xFFF0F0F0) else com.example.petmate.ui.theme.PrimaryPeach,
-                                contentColor = if (isFollowing) Color.Black else Color.White
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(44.dp)
-                        ) {
-                            if (isFollowLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Text(
-                                    text = if (isFollowing) "Đang theo dõi" else "Theo dõi", 
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
                             }
                         }
                         

@@ -38,10 +38,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Notification: title=${remoteMessage.notification?.title}, body=${remoteMessage.notification?.body}")
         Log.d(TAG, "Data: ${remoteMessage.data}")
 
-        val title = remoteMessage.notification?.title
+        val title = remoteMessage.data["title"]
             ?: remoteMessage.data["senderName"]
             ?: "PetMate"
-        val body = remoteMessage.notification?.body
+        val body = remoteMessage.data["body"]
             ?: remoteMessage.data["content"]
             ?: "Bạn có thông báo mới"
         val roomId = remoteMessage.data["roomId"]?.toLongOrNull()
@@ -49,7 +49,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Save to local storage
         val storage = NotificationStorage(applicationContext)
-        storage.saveNotification(title, body, type)
+        storage.saveNotification(title, body, type, remoteMessage.data)
+        
+        // Trigger global UI refresh for unread count
+        com.example.petmate.util.AppEventBus.triggerRefresh()
 
         // Always show notification (foreground + background)
         showNotification(title, body, roomId)

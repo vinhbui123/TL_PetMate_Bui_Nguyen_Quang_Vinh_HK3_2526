@@ -33,8 +33,17 @@
             android:theme="@style/Theme.PetMate">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- App Links (Xác thực qua Firebase Hosting) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="test-mobile-app-8c2ce.web.app"
+                      android:pathPrefix="/pet" />
             </intent-filter>
         </activity>
 

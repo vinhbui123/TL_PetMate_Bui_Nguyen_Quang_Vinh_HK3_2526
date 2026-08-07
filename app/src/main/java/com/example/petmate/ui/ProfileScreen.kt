@@ -1,48 +1,52 @@
 package com.example.petmate.ui
 
+import android.net.Uri
 import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.HomeWork
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.AppRegistration
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import com.example.petmate.model.User
 import com.example.petmate.network.NetworkClient
+import com.example.petmate.ui.theme.*
 import kotlinx.coroutines.launch
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.PickVisualMediaRequest
-import android.net.Uri
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Color
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +58,7 @@ fun ProfileScreen(
     onManageAdoptions: () -> Unit = {},
     onViewSavedPets: () -> Unit = {},
     onOrgRegistrationClick: () -> Unit = {},
-    onOrgProfileClick: () -> Unit = {}
+    onChangePasswordClick: () -> Unit = {}
 ) {
     var user by remember { mutableStateOf<User?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -63,6 +67,7 @@ fun ProfileScreen(
     var fullName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var cccd by remember { mutableStateOf("") }
     var avatarUrl by remember { mutableStateOf<String?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var isUploadingAvatar by remember { mutableStateOf(false) }
@@ -70,6 +75,7 @@ fun ProfileScreen(
     var isDeleting by remember { mutableStateOf(false) }
     var followersCount by remember { mutableStateOf(0L) }
     var followingCount by remember { mutableStateOf(0L) }
+    
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -81,6 +87,7 @@ fun ProfileScreen(
             fullName = fetchedUser.fullName
             phone = fetchedUser.phone ?: ""
             address = fetchedUser.address ?: ""
+            cccd = fetchedUser.cccd ?: ""
             avatarUrl = fetchedUser.avatarUrl
             try {
                 val stats = NetworkClient.apiService.getUserFollowStats(fetchedUser.id)
@@ -89,7 +96,7 @@ fun ProfileScreen(
             } catch (e: Exception) { e.printStackTrace() }
         } catch (e: Exception) {
             e.printStackTrace()
-            snackbarHostState.showSnackbar("Lỗi tải thông tin")
+            snackbarHostState.showSnackbar("Không thể tải thông tin hồ sơ")
         } finally {
             isLoading = false
         }
@@ -114,10 +121,10 @@ fun ProfileScreen(
                     val updatedUser = NetworkClient.apiService.uploadAvatar(body)
                     avatarUrl = updatedUser.avatarUrl
                     user = updatedUser
-                    Toast.makeText(context, "Tải ảnh lên thành công", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Cập nhật ảnh đại diện thành công", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    Toast.makeText(context, "Lỗi tải ảnh: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Lỗi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                 } finally {
                     isUploadingAvatar = false
                 }
@@ -128,52 +135,50 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Hồ sơ cá nhân", fontWeight = FontWeight.Bold) },
+                title = { Text("Hồ sơ cá nhân", fontWeight = FontWeight.Bold, color = TextGray) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextGray)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
+        containerColor = BackgroundBeige,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = PrimaryPeach)
             }
         } else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 24.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 // Avatar UI
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(110.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray)
+                        .background(Color.White)
+                        .padding(4.dp)
+                        .clip(CircleShape)
+                        .background(SoftPeach)
                         .clickable(enabled = !isUploadingAvatar) {
                             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selectedImageUri != null) {
+                    if (selectedImageUri != null || !avatarUrl.isNullOrEmpty()) {
                         AsyncImage(
-                            model = selectedImageUri,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else if (!avatarUrl.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = avatarUrl,
+                            model = selectedImageUri ?: avatarUrl,
                             contentDescription = "Avatar",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -182,76 +187,69 @@ fun ProfileScreen(
                         Icon(
                             Icons.Default.AccountCircle,
                             contentDescription = "Default Avatar",
-                            modifier = Modifier.size(64.dp),
-                            tint = Color.White
+                            modifier = Modifier.size(70.dp),
+                            tint = IconGray
                         )
                     }
+                    
+                    // Camera Overlay Icon
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
                     if (isUploadingAvatar) {
-                        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = Color.White)
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(30.dp), strokeWidth = 3.dp)
                         }
                     }
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
+                // Followers/Following
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "$followersCount\nNgười theo dõi",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = com.example.petmate.ui.theme.PrimaryPeach,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.clickable { user?.id?.let { onViewFollowers(it, 0) } }
+                    StatItem(count = followersCount, label = "Người theo dõi") {
+                        user?.id?.let { onViewFollowers(it, 0) }
+                    }
+                    VerticalDivider(
+                        modifier = Modifier.height(30.dp).padding(horizontal = 32.dp),
+                        color = InputBorder
                     )
-                    Spacer(modifier = Modifier.width(32.dp))
-                    Text(
-                        text = "$followingCount\nĐang theo dõi",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = com.example.petmate.ui.theme.PrimaryPeach,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.clickable { user?.id?.let { onViewFollowers(it, 1) } }
-                    )
+                    StatItem(count = followingCount, label = "Đang theo dõi") {
+                        user?.id?.let { onViewFollowers(it, 1) }
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                OutlinedTextField(
-                    value = fullName,
-                    onValueChange = { fullName = it },
-                    label = { Text("Họ và tên") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                // Form Fields
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ProfileTextField(value = fullName, onValueChange = { fullName = it }, label = "Họ và tên")
+                    ProfileTextField(value = phone, onValueChange = { phone = it }, label = "Số điện thoại", keyboardType = KeyboardType.Phone)
+                    ProfileTextField(value = cccd, onValueChange = { cccd = it }, label = "Số CCCD", keyboardType = KeyboardType.Number)
+                    ProfileTextField(value = address, onValueChange = { address = it }, label = "Địa chỉ")
+                }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Số điện thoại") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                OutlinedTextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    label = { Text("Địa chỉ") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
+                // Primary Action Button
                 Button(
                     onClick = {
                         isSaving = true
@@ -263,19 +261,12 @@ fun ProfileScreen(
                                     fullName = fullName,
                                     role = user?.role ?: "MEMBER",
                                     phone = phone,
-                                    address = address
+                                    address = address,
+                                    cccd = cccd
                                 )
                                 NetworkClient.apiService.updateProfile(updatedUser)
-                                Toast.makeText(context, "Đã lưu thành công!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Đã lưu thay đổi!", Toast.LENGTH_SHORT).show()
                                 onSaveSuccess()
-                            } catch (e: retrofit2.HttpException) {
-                                val errorBody = e.response()?.errorBody()?.string()
-                                val errorMessage = try {
-                                    org.json.JSONObject(errorBody ?: "").getString("message")
-                                } catch (ex: Exception) {
-                                    "Lỗi kết nối"
-                                }
-                                snackbarHostState.showSnackbar("Lỗi: $errorMessage")
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar("Lỗi khi lưu: ${e.localizedMessage}")
                             } finally {
@@ -283,71 +274,43 @@ fun ProfileScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPeach),
                     enabled = !isSaving
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                     } else {
-                        Text("Lưu thay đổi")
+                        Text("Lưu thay đổi", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(color = InputBorder.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Button(
-                    onClick = onViewSavedPets,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.AccentOrange)
-                ) {
-                    Text("Tin đã lưu", fontWeight = FontWeight.Bold, color = Color.White)
+                // Secondary Actions Group
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ActionRowButton(icon = Icons.Default.Bookmark, label = "Tin đã lưu", onClick = onViewSavedPets)
+                    ActionRowButton(icon = Icons.Default.Lock, label = "Đổi mật khẩu", onClick = onChangePasswordClick)
+                    
+                    ActionRowButton(
+                        icon = Icons.AutoMirrored.Filled.ExitToApp, 
+                        label = "Đăng xuất", 
+                        onClick = onLogoutClick,
+                        contentColor = TextGray.copy(alpha = 0.7f)
+                    )
+
+                    ActionRowButton(
+                        icon = Icons.Default.DeleteForever, 
+                        label = "Xóa tài khoản", 
+                        onClick = { showDeleteDialog = true },
+                        contentColor = Color(0xFFE57373) // Soft red
+                    )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onOrgProfileClick,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.PrimaryPeach)
-                ) {
-                    Icon(Icons.Default.HomeWork, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Hồ sơ Trạm Cứu Hộ", fontWeight = FontWeight.Bold, color = Color.White)
-                }
-                
-
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Nút Đăng xuất
-                Button(
-                    onClick = onLogoutClick,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = Color.DarkGray)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Đăng xuất", fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Nút Xóa Tài Khoản
-                OutlinedButton(
-                    onClick = { showDeleteDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
-                ) {
-                    Text("Xóa tài khoản", fontWeight = FontWeight.Bold)
-                }
-                
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -355,35 +318,32 @@ fun ProfileScreen(
     if (showDeleteDialog) {
         Dialog(onDismissRequest = { if (!isDeleting) showDeleteDialog = false }) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = com.example.petmate.ui.theme.CardWhite),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "Xác nhận xóa tài khoản",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = com.example.petmate.ui.theme.TextGray,
-                        modifier = Modifier.padding(bottom = 16.dp),
+                        fontWeight = FontWeight.Bold,
+                        color = TextGray
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "Bạn có chắc chắn muốn xóa tài khoản không? Hành động này không thể hoàn tác.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextGray.copy(alpha = 0.8f),
                         textAlign = TextAlign.Center
                     )
                     
-                    Text(
-                        text = "Bạn có chắc chắn muốn xóa tài khoản không? Hành động này sẽ khóa tài khoản và ẩn toàn bộ bài đăng của bạn. Không thể hoàn tác.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = com.example.petmate.ui.theme.TextGray,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -391,15 +351,13 @@ fun ProfileScreen(
                     ) {
                         OutlinedButton(
                             onClick = { showDeleteDialog = false },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, com.example.petmate.ui.theme.InputBorder),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = com.example.petmate.ui.theme.TextGray),
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, InputBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextGray),
                             enabled = !isDeleting
                         ) {
-                            Text("Hủy", fontWeight = FontWeight.Bold)
+                            Text("Hủy")
                         }
 
                         Button(
@@ -408,7 +366,7 @@ fun ProfileScreen(
                                 coroutineScope.launch {
                                     try {
                                         NetworkClient.apiService.deleteAccount()
-                                        Toast.makeText(context, "Đã xóa tài khoản thành công!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Đã xóa tài khoản", Toast.LENGTH_SHORT).show()
                                         showDeleteDialog = false
                                         onLogoutClick()
                                     } catch (e: Exception) {
@@ -418,22 +376,108 @@ fun ProfileScreen(
                                     }
                                 }
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.ErrorRed),
-                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            shape = RoundedCornerShape(12.dp),
                             enabled = !isDeleting
                         ) {
                             if (isDeleting) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                             } else {
-                                Text("Xóa", fontWeight = FontWeight.ExtraBold, color = Color.White)
+                                Text("Xóa", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun StatItem(count: Long, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Text(
+            text = count.toString(),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextGray
+        )
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = IconGray
+        )
+    }
+}
+
+@Composable
+fun ProfileTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = PrimaryPeach,
+            unfocusedBorderColor = InputBorder,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White.copy(alpha = 0.6f),
+            focusedLabelColor = PrimaryPeach,
+            cursorColor = PrimaryPeach
+        )
+    )
+}
+
+@Composable
+fun ActionRowButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    contentColor: Color = TextGray
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White.copy(alpha = 0.5f)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = label,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = contentColor
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = IconGray,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

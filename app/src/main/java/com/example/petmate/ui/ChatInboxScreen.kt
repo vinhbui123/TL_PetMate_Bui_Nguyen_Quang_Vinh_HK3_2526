@@ -25,7 +25,8 @@ import com.example.petmate.network.NetworkClient
 @Composable
 fun ChatInboxScreen(
     currentUserId: Long,
-    onRoomClick: (ChatRoom) -> Unit
+    onRoomClick: (ChatRoom) -> Unit,
+    onRefresh: () -> Unit = {}
 ) {
     var chatRooms by remember { mutableStateOf<List<ChatRoom>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -38,6 +39,7 @@ fun ChatInboxScreen(
             e.printStackTrace()
         } finally {
             isLoading = false
+            onRefresh() // Refresh total unread count when chat inbox loads
         }
     }
 

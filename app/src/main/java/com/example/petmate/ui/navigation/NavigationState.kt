@@ -34,4 +34,5 @@ sealed interface Screen {
     data class OrgMemberManagement(val orgId: Long) : Screen
     data class EditOrgProfile(val org: OrganizationProfileDto) : Screen
     data object OrgDashboard : Screen
+    data object ChangePassword : Screen
 }

@@ -23,7 +23,7 @@ object ChatWebSocketManager {
         if (webSocket != null) return
 
         val request = Request.Builder()
-            .url("ws://${NetworkClient.SERVER_IP}:${NetworkClient.SERVER_PORT}/ws/chat?userId=$userId")
+            .url("wss://tieu-luan-hk3.onrender.com/ws/chat?userId=$userId")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {

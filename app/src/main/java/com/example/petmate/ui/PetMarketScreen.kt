@@ -1,5 +1,6 @@
 package com.example.petmate.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import com.example.petmate.R
 import com.example.petmate.ui.theme.*
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import com.example.petmate.model.Pet
 import com.example.petmate.model.User
 import com.example.petmate.network.NetworkClient.apiService
@@ -131,11 +133,18 @@ fun PetMarketScreen(
                     onOrgRegistrationClick = onOrgRegistrationClick
                 )
             
+            val context = LocalContext.current
             // Search Bar
             DiscoverySearchBar(
                 searchQuery = searchQuery,
                 onQueryChange = { searchQuery = it },
-                onFilterClick = { showFilterSheet = true }
+                onFilterClick = {
+                    if (currentUser != null) {
+                        showFilterSheet = true
+                    } else {
+                        Toast.makeText(context, "Vui lòng đăng nhập để sử dụng tìm kiếm nâng cao!", Toast.LENGTH_SHORT).show()
+                    }
+                }
             )
             
             // Category List (Reused from PetAdoptScreen)

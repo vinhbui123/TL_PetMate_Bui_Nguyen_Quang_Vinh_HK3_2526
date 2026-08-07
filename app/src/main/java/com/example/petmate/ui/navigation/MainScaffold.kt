@@ -50,6 +50,7 @@ fun MainScaffold(
     userLatitude: Double?,
     userLongitude: Double?,
     blockedUserIds: List<Long>,
+    onRefresh: () -> Unit,
     context: Context
 ) {
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
@@ -141,6 +142,7 @@ fun MainScaffold(
                             Toast.makeText(context, "Vui lòng đăng nhập để xem tin nhắn!", android.widget.Toast.LENGTH_SHORT).show()
                             onLogout()
                         } else {
+                            onRefresh() // Cập nhật lại số lượng tin nhắn chưa đọc
                             onTabSelected(3)
                         }
                     },
@@ -212,7 +214,8 @@ fun MainScaffold(
                         currentUserId = currentUser!!.id,
                         onRoomClick = { room ->
                             onNavigate(Screen.ChatConversation(room))
-                        }
+                        },
+                        onRefresh = onRefresh
                     )
                 }
             }

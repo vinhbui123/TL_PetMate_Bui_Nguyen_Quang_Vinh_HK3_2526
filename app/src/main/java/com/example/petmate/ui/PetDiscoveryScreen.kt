@@ -1,5 +1,6 @@
 package com.example.petmate.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -11,12 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -135,11 +131,17 @@ fun PetDiscoveryScreen(
                     onOrgDashboardClick = onOrgDashboardClick,
                     onOrgRegistrationClick = onOrgRegistrationClick
                 )
-                
+                val context = LocalContext.current
                 DiscoverySearchBar(
                     searchQuery = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    onFilterClick = { showFilterSheet = true }
+                    onFilterClick = {
+                        if (currentUser != null) {
+                            showFilterSheet = true
+                        } else {
+                            Toast.makeText(context, "Vui lòng đăng nhập để sử dụng tìm kiếm nâng cao!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             CategoryList(
                 selectedCategory = selectedCategory,
@@ -406,10 +408,10 @@ fun PetCard(
                     modifier = Modifier.align(Alignment.TopStart)
                 ) {
                     Icon(
-                        imageVector = if (isOrg) Icons.Default.Verified else Icons.Default.Person,
+                        imageVector = if (isOrg) Icons.Default.HomeWork else Icons.Default.Person,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.padding(4.dp).size(12.dp)
+                        modifier = Modifier.padding(6.dp).size(14.dp)
                     )
                 }
             }

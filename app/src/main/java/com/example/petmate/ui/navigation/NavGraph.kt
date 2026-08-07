@@ -50,6 +50,7 @@ fun NavGraph(
                 userLatitude = userLatitude,
                 userLongitude = userLongitude,
                 blockedUserIds = blockedUserIds,
+                onRefresh = onRefresh,
                 context = context
             )
         }
@@ -128,19 +129,18 @@ fun NavGraph(
                 onOrgRegistrationClick = {
                     onNavigate(Screen.OrgRegistration)
                 },
-                onOrgProfileClick = {
-                    coroutineScope.launch {
-                        try {
-                            val res = NetworkClient.orgApi.getMyOrg()
-                            if (res.isSuccessful && res.body() != null) {
-                                onNavigate(Screen.OrgProfile(res.body()!!))
-                            } else {
-                                onNavigate(Screen.OrgRegistration)
-                            }
-                        } catch (_: Exception) {
-                            onNavigate(Screen.OrgRegistration)
-                        }
-                    }
+                onChangePasswordClick = {
+                    onNavigate(Screen.ChangePassword)
+                }
+            )
+        }
+        is Screen.ChangePassword -> {
+            BackHandler { onPop() }
+            ChangePasswordScreen(
+                onBackClick = onPop,
+                onPasswordChanged = {
+                    onPop()
+                    Toast.makeText(context, "Mật khẩu đã được thay đổi!", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -174,13 +174,19 @@ fun NavGraph(
             BlockedUsersScreen(onBackClick = onPop)
         }
         is Screen.ChatConversation -> {
-            BackHandler { onPop() }
+            BackHandler {
+                onRefresh()
+                onPop()
+            }
             ChatScreen(
                 roomId = currentScreen.chatRoom.id,
                 currentUserId = currentUser?.id ?: 0L,
                 otherUserName = currentScreen.chatRoom.otherUser.fullName,
                 otherUserId = currentScreen.chatRoom.otherUser.id,
-                onBack = onPop
+                onBack = {
+                    onRefresh()
+                    onPop()
+                }
             )
         }
         is Screen.SellerProfile -> {
@@ -202,6 +208,7 @@ fun NavGraph(
                 isOrgProfile = currentScreen.isOrgProfile,
                 onBack = onPop,
                 onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) },
+                currentUserId = currentUser?.id,
                 userLatitude = userLatitude,
                 userLongitude = userLongitude,
                 blockedUserIds = blockedUserIds,

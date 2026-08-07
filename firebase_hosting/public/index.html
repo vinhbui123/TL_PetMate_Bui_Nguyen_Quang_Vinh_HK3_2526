@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PetMate - Đang mở ứng dụng...</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+            margin: 0;
+            text-align: center;
+            padding: 20px;
+        }
+        .btn {
+            background-color: #FF7043;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        p {
+            color: #555;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h2>PetMate</h2>
+    <p>Nếu ứng dụng không tự động mở, vui lòng bấm nút bên dưới:</p>
+    <a id="openAppBtn" href="#" class="btn">Mở trong App PetMate</a>
+
+    <script>
+        // Lấy đường dẫn hiện tại (ví dụ: /pet/23)
+        var path = window.location.pathname;
+        
+        // Tạo Intent URI để ép HĐH Android mở App PetMate
+        // Cú pháp chuẩn của Android Intent
+        var intentUrl = "intent://test-mobile-app-8c2ce.web.app" + path + "#Intent;scheme=https;package=com.example.petmate;end";
+        
+        // Cập nhật link cho nút bấm
+        document.getElementById("openAppBtn").href = intentUrl;
+        
+        // Tự động chuyển hướng ngay lập tức
+        window.location.href = intentUrl;
+    </script>
+</body>
+</html>

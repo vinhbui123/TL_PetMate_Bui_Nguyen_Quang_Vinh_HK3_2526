@@ -319,7 +319,8 @@ fun PetDetailsScreen(
                                 phone = petUser.phone,
                                 address = petUser.address,
                                 latitude = petUser.latitude,
-                                longitude = petUser.longitude
+                                longitude = petUser.longitude,
+                                trustScore = petUser.trustScore
                             )
                             onChatClick(user)
                         }
@@ -401,10 +402,10 @@ fun PetDetailsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp)
+                        .height(100.dp)
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
+                                colors = listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent)
                             )
                         )
                 )
@@ -414,7 +415,7 @@ fun PetDetailsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -423,13 +424,13 @@ fun PetDetailsScreen(
                         onClick = onBackClick
                     )
                     
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DetailActionIcon(
                             icon = Icons.Default.Share,
                             onClick = { 
                                 val sendIntent: Intent = Intent().apply {
                                     action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "Hãy xem bé ${pet.name} (${pet.breed}) đang tìm chủ trên ứng dụng PetMate!\nLink: https://petmate.vn/pet/${pet.id}")
+                                    putExtra(Intent.EXTRA_TEXT, "Hãy xem bé ${pet.name} (${pet.breed}) đang tìm chủ trên ứng dụng PetMate!\nLink: https://test-mobile-app-8c2ce.web.app/pet/${pet.id}")
                                     type = "text/plain"
                                 }
                                 val shareIntent = Intent.createChooser(sendIntent, "Chia sẻ bài đăng")
@@ -438,8 +439,8 @@ fun PetDetailsScreen(
                         )
                         
                         DetailActionIcon(
-                            icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            tint = if (isLiked) Color.Red else Color.White,
+                            icon = Icons.Default.Favorite,
+                            tint = if (isLiked) HeartRed else Color.White,
                             badgeText = if (likeCount > 0) likeCount.toString() else null,
                             onClick = {
                                 if (currentUserId == null) {
@@ -483,7 +484,7 @@ fun PetDetailsScreen(
                         )
 
                         DetailActionIcon(
-                            icon = Icons.Default.Warning,
+                            icon = Icons.Default.WarningAmber,
                             onClick = { showPetReportDialog = true }
                         )
                     }
@@ -499,40 +500,42 @@ fun PetDetailsScreen(
             ) {
                 Text(
                     text = pet.name ?: "Chưa có tên",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    lineHeight = 28.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                val priceText = pet.price?.takeIf { it.isNotBlank() && it != "Miễn phí" && it != "0" && it != "0.0" } ?: "Miễn phí"
-                Text(
-                    text = priceText,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE53935) // Red price like Cho Tot
+                    color = Color.Black,
+                    lineHeight = 32.sp
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                val currentPrice = pet.price
+                val isFree = currentPrice.isNullOrEmpty() || currentPrice == "0" || currentPrice == "0.0" || currentPrice.lowercase().contains("miễn phí")
+                val priceText = if (isFree) "Miễn phí" else "${currentPrice}đ"
+                Text(
+                    text = priceText,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFFD32F2F) // Deep Red price
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = LocationHelper.getDistanceText(
                                 userLatitude, userLongitude, 
                                 pet.latitude, 
                                 pet.longitude
-                            )?.let { "Cách $it" } ?: "Chưa rõ khoảng cách",
+                            )?.let { "Cách $it" } ?: "Chưa rõ",
                             style = MaterialTheme.typography.bodyMedium, color = Color.Gray
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.AccessTime, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Tin đăng ${TimeHelper.getRelativeTime(pet.createdAt).lowercase()}",
                             style = MaterialTheme.typography.bodyMedium, 
@@ -570,7 +573,8 @@ fun PetDetailsScreen(
                             phone = s.phone,
                             address = s.address,
                             latitude = s.latitude,
-                            longitude = s.longitude
+                            longitude = s.longitude,
+                            trustScore = s.trustScore
                         )
                         onViewSellerProfile(user, sellerOrgProfile != null)
                     }
@@ -850,26 +854,40 @@ fun PetDetailsScreen(
                 )
             }
             
-            // Characteristics (Minimalist list without heavy icons)
+            // Characteristics
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
                     .padding(16.dp)
             ) {
-                Text("Đặc điểm thú cưng", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
+                Text("Thông tin chi tiết", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
                 Spacer(modifier = Modifier.height(16.dp))
+                
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        SpecRow("Giống", pet.breed ?: "Chưa rõ")
-                        SpecRow("Độ tuổi (tháng)", pet.age ?: "Chưa rõ")
+                        SpecRow(Icons.Default.Pets, "Giống", pet.breed ?: "Chưa rõ")
+                        SpecRow(Icons.Default.Cake, "Độ tuổi", pet.age ?: "Chưa rõ")
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        SpecRow("Giới tính", pet.sex ?: "Chưa rõ")
-                        SpecRow("Trọng lượng (kg)", pet.weight ?: "Chưa rõ")
-                        SpecRow("Tiêm phòng", if (pet.isVaccinated) "Đã tiêm" else "Chưa tiêm")
-                        SpecRow("Triệt sản", if (pet.isNeutered) "Đã triệt sản" else "Chưa")
+                        val displaySex = when (pet.sex?.lowercase()) {
+                            "male" -> "Đực"
+                            "female" -> "Cái"
+                            else -> pet.sex ?: "Chưa rõ"
+                        }
+                        SpecRow(Icons.Default.Transgender, "Giới tính", displaySex)
+                        SpecRow(Icons.Default.MonitorWeight, "Trọng lượng", pet.weight ?: "Chưa rõ")
+                    }
+                }
+                
+                HorizontalDivider(color = Color(0xFFF5F5F5), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        SpecRow(Icons.Default.Vaccines, "Tiêm phòng", if (pet.isVaccinated) "Đã tiêm" else "Chưa tiêm")
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        SpecRow(Icons.Default.ContentCut, "Triệt sản", if (pet.isNeutered) "Đã triệt sản" else "Chưa")
                     }
                 }
             }
@@ -932,12 +950,11 @@ fun DetailActionIcon(
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = Color.Black.copy(alpha = 0.3f),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
-        modifier = if (badgeText != null) Modifier.height(36.dp) else Modifier.size(36.dp)
+        color = Color.Black.copy(alpha = 0.4f),
+        modifier = if (badgeText != null) Modifier.height(40.dp) else Modifier.size(40.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = if (badgeText != null) 12.dp else 0.dp),
+            modifier = Modifier.padding(horizontal = if (badgeText != null) 10.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -945,15 +962,15 @@ fun DetailActionIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
             if (badgeText != null) {
                 Text(
                     text = badgeText,
                     color = Color.White,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.padding(start = 6.dp)
                 )
             }
         }
@@ -961,11 +978,24 @@ fun DetailActionIcon(
 }
 
 @Composable
-fun SpecRow(label: String, value: String?) {
-    Column(modifier = Modifier.padding(bottom = 12.dp)) {
-        Text(text = label, fontSize = 12.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(text = value ?: "Đang cập nhật", fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+fun SpecRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        modifier = Modifier.padding(bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(Color(0xFFF5F5F5), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(text = label, fontSize = 12.sp, color = Color.Gray)
+            Text(text = value, fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
@@ -979,7 +1009,7 @@ fun BottomActionBar(
 ) {
     Surface(
         color = Color.White,
-        shadowElevation = 8.dp,
+        shadowElevation = 16.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -987,105 +1017,65 @@ fun BottomActionBar(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Chat Button
-            Button(
-                onClick = onChatClick,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f).height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = PrimaryPeach
-                ),
-                border = BorderStroke(1.dp, PrimaryPeach)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat", modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Chat", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-            
             if (isFree) {
                 when (adoptionStatus) {
                     "PENDING" -> {
                         Button(
                             onClick = onCancelAdoptionClick,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Gray,
-                                contentColor = Color.White
-                            )
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0), contentColor = Color.DarkGray)
                         ) {
-                            Icon(Icons.Default.AccessTime, contentDescription = "Đã gửi", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đã gửi đơn", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Icon(Icons.Default.AccessTime, contentDescription = null)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Đã gửi đơn nhận nuôi - Hủy?", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                     "APPROVED" -> {
                         Button(
                             onClick = { },
                             enabled = false,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = Color(0xFF4CAF50),
-                                disabledContentColor = Color.White
-                            )
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            colors = ButtonDefaults.buttonColors(disabledContainerColor = SuccessGreen, disabledContentColor = Color.White)
                         ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Đã duyệt", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đã duyệt", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        }
-                    }
-                    "REJECTED" -> {
-                        Button(
-                            onClick = { },
-                            enabled = false,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = Color.Red.copy(alpha = 0.7f),
-                                disabledContentColor = Color.White
-                            )
-                        ) {
-                            Icon(Icons.Default.Cancel, contentDescription = "Từ chối", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Bị từ chối", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Icon(Icons.Default.CheckCircle, contentDescription = null)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Yêu cầu đã được duyệt", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                     else -> {
-                        // Adopt Button
                         Button(
-                            onClick = onAdoptClick,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            onClick = onChatClick,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PrimaryPeach,
-                                contentColor = Color.White
+                                containerColor = Color(0xFFE8D5C4),
+                                contentColor = DeepBrown
                             )
                         ) {
-                            Icon(Icons.Default.Pets, contentDescription = "Nhận nuôi", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Nhận nuôi", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Trò chuyện trực tiếp với người bán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 }
             } else {
-                // Call Button
                 Button(
-                    onClick = { /* Call logic */ },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
+                    onClick = onChatClick,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50), // Green for calling
-                        contentColor = Color.White
+                        containerColor = Color(0xFFE8D5C4),
+                        contentColor = DeepBrown
                     )
                 ) {
-                    Icon(Icons.Default.Phone, contentDescription = "Gọi ngay", modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Gọi ngay", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Trò chuyện trực tiếp với người bán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }

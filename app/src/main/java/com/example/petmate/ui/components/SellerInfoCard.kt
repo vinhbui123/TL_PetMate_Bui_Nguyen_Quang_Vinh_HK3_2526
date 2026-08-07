@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,7 +27,6 @@ import coil.compose.AsyncImage
 import com.example.petmate.R
 import com.example.petmate.model.PetUser
 import com.example.petmate.model.SellerRatingSummary
-import com.example.petmate.ui.theme.PrimaryPeach
 
 @Composable
 fun SellerInfoCard(
@@ -41,7 +41,7 @@ fun SellerInfoCard(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.White)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier
@@ -51,7 +51,7 @@ fun SellerInfoCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
                     .background(Color(0xFFF5F5F5))
             ) {
@@ -71,28 +71,39 @@ fun SellerInfoCard(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = seller?.fullName ?: "Người dùng ẩn danh",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color(0xFF212121),
-                        modifier = Modifier.weight(1f),
+                        color = Color.Black,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     
-                    // Top-right rating summary
+                    val isHighlyTrusted = (seller?.trustScore ?: 0.0) >= 4.5
+                    if (isHighlyTrusted) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Tài khoản uy tín",
+                            tint = Color(0xFF1D9BF0), // Blue checkmark color
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Rating Info on same line
+                    Spacer(modifier = Modifier.width(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "${ratingSummary?.averageRating ?: 0.0}",
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
                         )
@@ -102,7 +113,6 @@ fun SellerInfoCard(
                             tint = Color(0xFFFFC107), 
                             modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "(${ratingSummary?.totalReviews ?: 0})",
                             fontSize = 13.sp,
@@ -110,7 +120,7 @@ fun SellerInfoCard(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.LocationOn,
@@ -130,31 +140,31 @@ fun SellerInfoCard(
             }
         }
         
-        // Rating Action Section
+        // Rating Action Section - Button on the right
         if (currentUserId != null && seller != null && currentUserId != seller.id) {
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
-            Spacer(modifier = Modifier.height(12.dp))
-            
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.End
             ) {
                 OutlinedButton(
                     onClick = onWriteReview,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryPeach.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryPeach),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF757575)),
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(34.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
                 ) {
-                    Icon(Icons.Default.StarBorder, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        if (ratingSummary?.currentUserHasRated == true) Icons.Default.Star else Icons.Default.StarBorder, 
+                        contentDescription = null, 
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (ratingSummary?.currentUserHasRated == true) "Sửa đánh giá" else "Viết đánh giá", 
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }

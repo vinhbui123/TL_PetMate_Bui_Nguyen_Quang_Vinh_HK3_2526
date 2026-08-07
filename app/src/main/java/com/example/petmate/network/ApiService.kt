@@ -86,6 +86,9 @@ interface ApiService {
     @PUT("user/location")
     suspend fun updateLocation(@Body body: Map<String, Double>): User
 
+    @POST("user/change-password")
+    suspend fun changePassword(@Body request: com.example.petmate.model.ChangePasswordRequest): Response<Unit>
+
     @DELETE("user/account")
     suspend fun deleteAccount(): Response<Unit>
 

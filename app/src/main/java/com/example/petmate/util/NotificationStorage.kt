@@ -12,7 +12,8 @@ data class AppNotification(
     val body: String,
     val timestamp: Long = System.currentTimeMillis(),
     var isRead: Boolean = false,
-    val type: String = "general"
+    val type: String = "general",
+    val data: Map<String, String>? = null
 )
 
 class NotificationStorage(context: Context) {
@@ -20,9 +21,9 @@ class NotificationStorage(context: Context) {
     private val gson = Gson()
     private val NOTIFICATIONS_KEY = "notifications_list"
 
-    fun saveNotification(title: String, body: String, type: String = "general") {
+    fun saveNotification(title: String, body: String, type: String = "general", data: Map<String, String>? = null) {
         val notifications = getNotifications().toMutableList()
-        notifications.add(0, AppNotification(title = title, body = body, type = type))
+        notifications.add(0, AppNotification(title = title, body = body, type = type, data = data))
         // Keep only last 100 notifications to prevent storage bloat
         val trimmed = if (notifications.size > 100) notifications.take(100) else notifications
         prefs.edit().putString(NOTIFICATIONS_KEY, gson.toJson(trimmed)).apply()

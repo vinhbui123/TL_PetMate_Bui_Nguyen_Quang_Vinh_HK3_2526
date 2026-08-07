@@ -66,7 +66,7 @@ fun OrgDashboardScreen(
         containerColor = BackgroundBeige,
         topBar = {
             TopAppBar(
-                title = { Text("Thống kê hoạt động trạm", fontWeight = FontWeight.Bold) },
+                title = { Text("Thống kê hoạt động tổ chức", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Trở về")

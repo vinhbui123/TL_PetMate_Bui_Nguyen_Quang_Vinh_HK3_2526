@@ -24,6 +24,7 @@ import com.example.petmate.ui.theme.PrimaryPeach
 import com.example.petmate.util.AppNotification
 import com.example.petmate.util.NotificationStorage
 import com.example.petmate.util.TimeHelper
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +88,10 @@ fun NotificationScreen(onBack: () -> Unit) {
 @Composable
 fun NotificationCard(notification: AppNotification) {
     val bgColor = if (notification.isRead) Color.White else Color(0xFFFFF0ED)
+    var isHandled by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    
     Card(
         modifier = Modifier.fillMaxWidth().clickable { },
         colors = CardDefaults.cardColors(containerColor = bgColor),
@@ -123,6 +128,50 @@ fun NotificationCard(notification: AppNotification) {
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
+                if (notification.type == "org_invite" && !isHandled && notification.data != null) {
+                    val orgId = notification.data["orgId"]?.toLongOrNull()
+                    val memberId = notification.data["memberId"]?.toLongOrNull()
+                    if (orgId != null && memberId != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            val response = com.example.petmate.network.NetworkClient.orgApi.acceptInvitation(orgId, memberId)
+                                            if (response.isSuccessful) {
+                                                isHandled = true
+                                                android.widget.Toast.makeText(context, "Đã chấp nhận", android.widget.Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                android.widget.Toast.makeText(context, "Lỗi kết nối", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {}
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPeach),
+                                modifier = Modifier.weight(1f).height(36.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) { Text("Chấp nhận", fontSize = 12.sp) }
+                            OutlinedButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            val response = com.example.petmate.network.NetworkClient.orgApi.rejectInvitation(orgId, memberId)
+                                            if (response.isSuccessful) {
+                                                isHandled = true
+                                                android.widget.Toast.makeText(context, "Đã từ chối", android.widget.Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                android.widget.Toast.makeText(context, "Lỗi kết nối", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {}
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).height(36.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) { Text("Từ chối", fontSize = 12.sp, color = Color.Gray) }
+                        }
+                    }
+                }
             }
         }
     }

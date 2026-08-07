@@ -317,11 +317,12 @@ fun MemberItem(member: OrgMemberDto, onRemove: () -> Unit) {
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
+                val statusText = if (member.status == "PENDING") " (Đang chờ)" else ""
                 Text(
-                    text = member.userName ?: "Thành viên mới",
+                    text = (member.userName ?: "Thành viên mới") + statusText,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = DeepBrown
+                    color = if (member.status == "PENDING") Color.Gray else DeepBrown
                 )
                 Text(
                     text = member.userEmail ?: "",

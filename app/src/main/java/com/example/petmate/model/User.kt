@@ -18,5 +18,7 @@ data class User(
     val averageRating: Double? = 0.0,
     val ratingCount: Int? = 0,
     val violationCount: Int? = 0,
+    val trustScore: Double? = null,
+    val cccd: String? = null,
     val lastActiveAt: String? = null
 )

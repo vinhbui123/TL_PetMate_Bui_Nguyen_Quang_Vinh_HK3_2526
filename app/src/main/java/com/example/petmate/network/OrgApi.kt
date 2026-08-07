@@ -45,6 +45,12 @@ interface OrgApi {
     @DELETE("/api/orgs/{id}/members/{memberId}")
     suspend fun removeMember(@Path("id") id: Long, @Path("memberId") memberId: Long): Response<Unit>
 
+    @POST("/api/orgs/{id}/members/{memberId}/accept")
+    suspend fun acceptInvitation(@Path("id") id: Long, @Path("memberId") memberId: Long): Response<OrgMemberDto>
+
+    @POST("/api/orgs/{id}/members/{memberId}/reject")
+    suspend fun rejectInvitation(@Path("id") id: Long, @Path("memberId") memberId: Long): Response<Unit>
+
     @GET("/api/orgs/{id}/members")
     suspend fun getMembers(@Path("id") id: Long): Response<List<OrgMemberDto>>
 

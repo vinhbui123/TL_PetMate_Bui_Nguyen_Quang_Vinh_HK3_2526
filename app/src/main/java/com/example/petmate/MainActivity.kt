@@ -142,6 +142,26 @@ fun MainContent(onLogout: () -> Unit) {
 
     val currentScreenState = screenStack.last()
     
+    // Bắt Deep Link Firebase Hosting và chuyển vào màn hình Chi tiết
+    val activity = context as? android.app.Activity
+    val intentData = activity?.intent?.data
+    LaunchedEffect(intentData) {
+        if (intentData != null && intentData.host == "test-mobile-app-8c2ce.web.app" && intentData.path?.startsWith("/pet/") == true) {
+            val petIdStr = intentData.lastPathSegment
+            if (petIdStr != null) {
+                try {
+                    val petId = petIdStr.toInt()
+                    val pet = NetworkClient.apiService.getPetById(petId)
+                    screenStack = screenStack + Screen.PetDetails(pet)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(context, "Không thể tải bài viết từ link", Toast.LENGTH_SHORT).show()
+                }
+            }
+            activity.intent.data = null // Clear để không bị lặp lại khi recompose
+        }
+    }
+    
     val alreadyHasPermission = remember {
         ContextCompat.checkSelfPermission(context, ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -187,8 +207,8 @@ fun MainContent(onLogout: () -> Unit) {
         }
     }
 
-    // Sync User (chạy ngay, không phụ thuộc quyền vị trí)
-    LaunchedEffect(firebaseUser) {
+    // Sync User (chạy ngay khi đăng nhập, và mỗi khi refreshTrigger thay đổi)
+    LaunchedEffect(firebaseUser, refreshTrigger) {
         if (firebaseUser != null) {
             try {
                 // Lấy email: ưu tiên firebaseUser.email, fallback vào providerData (Google)
@@ -208,19 +228,25 @@ fun MainContent(onLogout: () -> Unit) {
                 currentUser = user
                 userRole = user.role
 
-                ChatWebSocketManager.connect(user.id)
+                // Chỉ kết nối WebSocket và đăng ký FCM lần đầu (refreshTrigger == 0)
+                if (refreshTrigger == 0) {
+                    ChatWebSocketManager.connect(user.id)
 
-                // Get Blocked Users
-                blockedUserIds = NetworkClient.apiService.getBlockedUsers()
+                    // Get Blocked Users
+                    blockedUserIds = NetworkClient.apiService.getBlockedUsers()
 
-                // Register FCM Token - Ép xóa token cũ (có thể bị cache sai project) rồi xin mới
-                try {
-                    FirebaseMessaging.getInstance().deleteToken().await()
-                    val token = FirebaseMessaging.getInstance().token.await()
-                    android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
-                    NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                    // Register FCM Token - Ép xóa token cũ (có thể bị cache sai project) rồi xin mới
+                    try {
+                        FirebaseMessaging.getInstance().deleteToken().await()
+                        val token = FirebaseMessaging.getInstance().token.await()
+                        android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
+                        NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                } else {
+                    // Refresh blocked users khi refresh
+                    blockedUserIds = NetworkClient.apiService.getBlockedUsers()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -262,6 +288,20 @@ fun MainContent(onLogout: () -> Unit) {
             }
         } else {
             Toast.makeText(context, "Chưa được cấp quyền Vị trí. Vui lòng bật trong Cài đặt ứng dụng!", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Lắng nghe sự kiện Push Notification (FCM) để cập nhật UI tức thời
+    LaunchedEffect(Unit) {
+        com.example.petmate.util.AppEventBus.refreshEvents.collect {
+            refreshTrigger++
+        }
+    }
+
+    // Lắng nghe tin nhắn WebSocket (Chat) để cập nhật UI tức thời
+    LaunchedEffect(Unit) {
+        com.example.petmate.network.ChatWebSocketManager.incomingMessages.collect {
+            refreshTrigger++
         }
     }
 
