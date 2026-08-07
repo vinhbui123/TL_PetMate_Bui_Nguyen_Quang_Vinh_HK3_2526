@@ -39,9 +39,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Data: ${remoteMessage.data}")
 
         val title = remoteMessage.data["title"]
+            ?: remoteMessage.notification?.title
             ?: remoteMessage.data["senderName"]
             ?: "PetMate"
         val body = remoteMessage.data["body"]
+            ?: remoteMessage.notification?.body
             ?: remoteMessage.data["content"]
             ?: "Bạn có thông báo mới"
         val roomId = remoteMessage.data["roomId"]?.toLongOrNull()

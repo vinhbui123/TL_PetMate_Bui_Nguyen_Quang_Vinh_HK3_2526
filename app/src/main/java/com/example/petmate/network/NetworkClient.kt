@@ -11,7 +11,6 @@ import java.util.concurrent.TimeUnit
 
 object NetworkClient {
     const val BASE_URL = "https://tieu-luan-hk3.onrender.com/api/"
-
     private val authInterceptor = Interceptor { chain ->
         val requestBuilder = chain.request().newBuilder()
 

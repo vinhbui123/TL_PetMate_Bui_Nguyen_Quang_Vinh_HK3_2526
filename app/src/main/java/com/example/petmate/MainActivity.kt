@@ -26,14 +26,12 @@ import android.content.Context.LOCATION_SERVICE
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build.VERSION_CODES.TIRAMISU
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
-import com.example.petmate.util.AppEventBus
 import com.facebook.login.LoginManager
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
@@ -237,12 +235,10 @@ fun MainContent(onLogout: () -> Unit) {
                     // Get Blocked Users
                     blockedUserIds = NetworkClient.apiService.getBlockedUsers()
 
-                    // Register FCM Token - lấy token mới nhất và gửi lên Server
+                    // Register FCM Token - Ép xóa token cũ (có thể bị cache sai project) rồi xin mới
                     try {
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            com.google.firebase.messaging.FirebaseMessaging.getInstance().deleteToken()
-                        }
-                        val token = com.google.firebase.messaging.FirebaseMessaging.getInstance().token.await()
+                        FirebaseMessaging.getInstance().deleteToken().await()
+                        val token = FirebaseMessaging.getInstance().token.await()
                         android.util.Log.d("FCM_DEBUG", "New FCM Token: $token")
                         NetworkClient.apiService.registerFcmToken(mapOf("token" to token))
                     } catch (e: Exception) {
@@ -297,14 +293,14 @@ fun MainContent(onLogout: () -> Unit) {
 
     // Lắng nghe sự kiện Push Notification (FCM) để cập nhật UI tức thời
     LaunchedEffect(Unit) {
-       AppEventBus.refreshEvents.collect {
+        com.example.petmate.util.AppEventBus.refreshEvents.collect {
             refreshTrigger++
         }
     }
 
     // Lắng nghe tin nhắn WebSocket (Chat) để cập nhật UI tức thời
     LaunchedEffect(Unit) {
-       ChatWebSocketManager.incomingMessages.collect {
+        com.example.petmate.network.ChatWebSocketManager.incomingMessages.collect {
             refreshTrigger++
         }
     }
