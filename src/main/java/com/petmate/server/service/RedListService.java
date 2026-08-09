@@ -143,7 +143,12 @@ public class RedListService {
 
         for (RedListSpecies species : getAllSpecies()) {
             List<String> keywords = new ArrayList<>();
-            keywords.add(species.getBreedKeyword());
+            if (species.getBreedKeyword() != null) {
+                Arrays.stream(species.getBreedKeyword().split(","))
+                      .map(String::trim)
+                      .filter(s -> !s.isEmpty())
+                      .forEach(keywords::add);
+            }
             keywords.addAll(parseSynonyms(species.getSynonyms()));
 
             for (String kw : keywords) {
@@ -182,31 +187,31 @@ public class RedListService {
         if (text == null || keyword == null || keyword.trim().isEmpty()) {
             return false;
         }
-        String normalizedText = stripDiacritics(text).toLowerCase();
-        String normalizedKeyword = stripDiacritics(keyword).toLowerCase();
+        String normalizedText = " " + stripDiacritics(text).toLowerCase().replaceAll("[\\s,\\.\\-_;:!?()\\[\\]\"']+", " ").trim() + " ";
+        String normalizedKeyword = " " + stripDiacritics(keyword).toLowerCase().replaceAll("[\\s,\\.\\-_;:!?()\\[\\]\"']+", " ").trim() + " ";
 
-        String[] words = normalizedText.split("[\\s,\\.\\-_;:!?()\\[\\]\"']+");
-        for (String word : words) {
-            if (word.equals(normalizedKeyword)) {
-                return true;
-            }
-        }
-        return false;
+        return normalizedText.contains(normalizedKeyword);
     }
 
     private boolean fuzzyMatchWord(String text, String keyword, int maxDistance) {
         if (text == null || keyword == null || keyword.trim().isEmpty() || maxDistance <= 0) {
             return false;
         }
-        String cleanKeyword = stripDiacritics(keyword).toLowerCase();
-        String[] words = stripDiacritics(text).toLowerCase()
-                .split("[\\s,\\.\\-_;:!?()\\[\\]\"']+");
+        String cleanKeyword = stripDiacritics(keyword).toLowerCase().replaceAll("[\\s,\\.\\-_;:!?()\\[\\]\"']+", " ").trim();
+        String[] textWords = stripDiacritics(text).toLowerCase()
+                .replaceAll("[\\s,\\.\\-_;:!?()\\[\\]\"']+", " ").trim().split(" ");
+        String[] keywordWords = cleanKeyword.split(" ");
 
-        for (String word : words) {
-            if (word.length() < cleanKeyword.length() - maxDistance) {
-                continue;
+        if (keywordWords.length == 0 || textWords.length == 0 || keywordWords[0].isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i <= textWords.length - keywordWords.length; i++) {
+            int totalDistance = 0;
+            for (int j = 0; j < keywordWords.length; j++) {
+                totalDistance += levenshtein(textWords[i+j], keywordWords[j]);
             }
-            if (levenshtein(word, cleanKeyword) <= maxDistance) {
+            if (totalDistance <= maxDistance) {
                 return true;
             }
         }
