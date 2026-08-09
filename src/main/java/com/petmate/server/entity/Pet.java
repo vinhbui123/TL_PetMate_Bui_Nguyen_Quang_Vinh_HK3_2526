@@ -98,6 +98,9 @@ public class Pet {
     @Builder.Default
     private Integer likeCount = 0;
 
+    @Column(name = "red_list_note", length = 500)
+    private String redListNote;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

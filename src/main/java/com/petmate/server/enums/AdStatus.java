@@ -5,5 +5,6 @@ public enum AdStatus {
     SOLD,
     HIDDEN,
     PENDING,
-    REJECTED
+    REJECTED,
+    REQUIRES_REVIEW
 }

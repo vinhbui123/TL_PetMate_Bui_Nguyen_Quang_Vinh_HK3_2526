@@ -1,9 +1,11 @@
 package com.petmate.server.controller;
 
 import com.petmate.server.dto.PetRequestDto;
+import com.petmate.server.dto.RedListCheckResult;
 import com.petmate.server.entity.Pet;
 import com.petmate.server.enums.AdStatus;
 import com.petmate.server.service.PetService;
+import com.petmate.server.service.RedListService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.util.List;
 public class PetController {
 
     private final PetService petService;
+    private final RedListService redListService;
 
     @GetMapping
     public ResponseEntity<List<Pet>> getAllPets(@RequestParam(required = false) String category) {
@@ -91,6 +94,16 @@ public class PetController {
         }
     }
 
+    @GetMapping("/pending-red-list")
+    public ResponseEntity<List<Pet>> getPendingRedListPets(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            return ResponseEntity.ok(petService.getPendingRedListPets(jwt));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
     @GetMapping("/admin/all")
     public ResponseEntity<List<Pet>> getAdminAllPets(@AuthenticationPrincipal Jwt jwt) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -119,6 +132,11 @@ public class PetController {
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).build();
         }
+    }
+
+    @PostMapping("/check-red-list")
+    public ResponseEntity<RedListCheckResult> checkRedList(@RequestBody @jakarta.validation.Valid PetRequestDto dto) {
+        return ResponseEntity.ok(redListService.checkPet(dto));
     }
 
     @DeleteMapping("/{id}")

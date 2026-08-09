@@ -1,6 +1,7 @@
 package com.petmate.server.service;
 
 import com.petmate.server.dto.PetRequestDto;
+import com.petmate.server.dto.RedListCheckResult;
 import com.petmate.server.entity.Pet;
 import com.petmate.server.entity.SavedPet;
 import com.petmate.server.entity.User;
@@ -38,6 +39,7 @@ public class PetService {
     private final UserService userService; // To reuse findCurrentUser
     private final OrganizationProfileRepository orgRepository;
     private final OrganizationMemberRepository memberRepository;
+    private final RedListService redListService;
 
     public List<Pet> getAllPets(String category) {
         if (category != null && !category.isEmpty()) {
@@ -112,7 +114,21 @@ public class PetService {
                 .user(owner)
                 .organization(org)
                 .build();
-        
+
+        RedListCheckResult redListResult = redListService.checkPet(dto);
+        if (redListResult.isMatched()) {
+            if (redListResult.getSpecies().getProtectionLevel() == com.petmate.server.enums.ProtectionLevel.PROHIBITED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Loại thú cưng này thuộc Danh sách đỏ cấm giao dịch ("
+                                + redListResult.getSpecies().getBreedKeyword()
+                                + "). Không thể đăng tin.");
+            }
+            pet.setStatus(AdStatus.REQUIRES_REVIEW);
+            pet.setRedListNote("Phát hiện từ khóa Danh sách đỏ: "
+                    + redListResult.getMatchedKeyword()
+                    + " (loại khớp: " + redListResult.getMatchType() + ")");
+        }
+
         return petRepository.save(pet);
     }
 
@@ -122,6 +138,14 @@ public class PetService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Từ chối truy cập");
         }
         return petRepository.findByStatusOrderByLikeCountDesc(AdStatus.PENDING);
+    }
+
+    public List<Pet> getPendingRedListPets(Jwt jwt) {
+        User user = userService.getCurrentUserOrThrow(jwt);
+        if (user.getRole() != RoleType.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Từ chối truy cập");
+        }
+        return petRepository.findByStatusOrderByLikeCountDesc(AdStatus.REQUIRES_REVIEW);
     }
 
     public List<Pet> getAdminAllPets(Jwt jwt) {
