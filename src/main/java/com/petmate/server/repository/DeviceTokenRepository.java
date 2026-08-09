@@ -10,4 +10,8 @@ import java.util.List;
 public interface DeviceTokenRepository extends JpaRepository<DeviceToken, String> {
     List<DeviceToken> findByUserId(Long userId);
     void deleteByUserId(Long userId);
+
+    @Modifying
+    @Query(value = "INSERT INTO fcm_tokens (token, user_id, updated_at) VALUES (?1, ?2, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE user_id = ?2, updated_at = CURRENT_TIMESTAMP", nativeQuery = true)
+    void upsertToken(String token, Long userId);
 }

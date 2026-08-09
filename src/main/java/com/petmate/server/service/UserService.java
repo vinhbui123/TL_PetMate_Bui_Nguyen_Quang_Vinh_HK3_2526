@@ -226,9 +226,13 @@ public class UserService {
         if (token == null || token.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiếu token xác thực");
         }
-        // Xóa tất cả token cũ của user này trước khi lưu token mới
+        
+        // Remove old tokens belonging to this user to avoid accumulating tokens
         deviceTokenRepository.deleteByUserId(user.getId());
-        deviceTokenRepository.save(DeviceToken.builder().token(token).user(user).build());
+        
+        // Upsert the token to handle concurrent requests gracefully and assign it to this user
+        deviceTokenRepository.upsertToken(token, user.getId());
+        
         touchLastActive(user);
         userRepository.save(user);
     }
