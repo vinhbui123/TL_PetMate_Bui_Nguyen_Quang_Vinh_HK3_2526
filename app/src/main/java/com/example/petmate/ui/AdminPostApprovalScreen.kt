@@ -43,6 +43,7 @@ fun AdminPostApprovalScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) {
         try {
             pendingPets = NetworkClient.apiService.getPendingPets()
+                .filter { it.status != "REQUIRES_REVIEW" }
             allPets = NetworkClient.apiService.getAllPetsAdmin()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -266,6 +267,7 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
         "REJECTED" -> "Bị từ chối"
         "SOLD" -> "Đã giao dịch"
         "HIDDEN" -> "Đã ẩn"
+        "REQUIRES_REVIEW" -> "Danh sách đỏ"
         else -> pet.status ?: "Không rõ"
     }
 
@@ -273,6 +275,7 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
         "PENDING" -> Color(0xFFFFA000)
         "AVAILABLE" -> Color(0xFF4CAF50)
         "REJECTED" -> Color.Red
+        "REQUIRES_REVIEW" -> Color(0xFF795548)
         else -> Color.Gray
     }
 
@@ -331,7 +334,7 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
 
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (pet.status != "REJECTED" && pet.status != "HIDDEN") {
+                if (pet.status != "REJECTED" && pet.status != "HIDDEN" && pet.status != "REQUIRES_REVIEW") {
                     OutlinedButton(
                         onClick = { onStatusChange("REJECTED") },
                         modifier = Modifier.weight(1f),

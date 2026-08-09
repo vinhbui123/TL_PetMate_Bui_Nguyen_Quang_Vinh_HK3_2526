@@ -23,8 +23,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.petmate.ui.theme.PrimaryPeach
 import com.example.petmate.model.PetRequest
+import com.example.petmate.model.RedListCheckResult
 import com.example.petmate.network.NetworkClient
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -57,6 +60,8 @@ fun PostPetScreen(
     var isLoading by remember { mutableStateOf(false) }
     var myOrg by remember { mutableStateOf<com.example.petmate.model.OrganizationProfileDto?>(null) }
     var postAsOrg by remember { mutableStateOf(false) }
+    var redListCheck by remember { mutableStateOf<RedListCheckResult?>(null) }
+    var isCheckingRedList by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
@@ -71,6 +76,28 @@ fun PostPetScreen(
 
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri
+    }
+
+    // Auto-check red list when user changes name/breed/description (with debounce)
+    LaunchedEffect(name, breed, description) {
+        if (name.isBlank() && breed.isBlank() && description.isBlank()) {
+            redListCheck = null
+            return@LaunchedEffect
+        }
+        kotlinx.coroutines.delay(600)
+        isCheckingRedList = true
+        try {
+            val dto = PetRequest(
+                name = name, breed = breed, age = age, weight = weight,
+                gender = "MALE", description = description,
+                price = null, category = category
+            )
+            redListCheck = NetworkClient.apiService.checkRedList(dto)
+        } catch (e: Exception) {
+            redListCheck = null
+        } finally {
+            isCheckingRedList = false
+        }
     }
 
     Scaffold(
@@ -193,6 +220,43 @@ fun PostPetScreen(
                 }
             }
 
+            // Red List Warning
+            if (isCheckingRedList) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = PrimaryPeach)
+            } else {
+                redListCheck?.let { result ->
+                    if (result.matched && result.species != null) {
+                        val isProhibited = result.species.protectionLevel == "PROHIBITED"
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isProhibited) Color(0xFFFFEBEE) else Color(0xFFFFF3E0)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = if (isProhibited) "🔴 Cấm giao dịch" else "⚠️ Cần xem xét Danh sách đỏ",
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isProhibited) Color.Red else Color(0xFFFFA000)
+                                )
+                                Text(
+                                    text = "Phát hiện từ khóa: ${result.matchedKeyword}",
+                                    fontSize = 13.sp,
+                                    color = if (isProhibited) Color(0xFFB71C1C) else Color(0xFFBF360C)
+                                )
+                                if (!result.species.description.isNullOrEmpty()) {
+                                    Text(
+                                        text = result.species.description,
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             
             Button(
@@ -249,8 +313,8 @@ fun PostPetScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(containerColor = com.example.petmate.ui.theme.PrimaryPeach)
+                enabled = !isLoading && redListCheck?.species?.protectionLevel != "PROHIBITED",
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPeach)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))

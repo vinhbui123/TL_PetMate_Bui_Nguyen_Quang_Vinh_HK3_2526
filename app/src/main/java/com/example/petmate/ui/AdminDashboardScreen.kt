@@ -30,6 +30,7 @@ fun AdminDashboardScreen(
     onNavigateToReports: () -> Unit = {},
     onNavigateToLogs: () -> Unit = {},
     onNavigateToStats: () -> Unit = {},
+    onNavigateToRedList: () -> Unit = {},
     onFeatureNotReady: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
@@ -121,6 +122,14 @@ fun AdminDashboardScreen(
                         icon = Icons.Default.PieChart,
                         color = Color(0xFF607D8B), // Blue Grey
                         onClick = onNavigateToStats
+                    )
+                }
+                item {
+                    DashboardCard(
+                        title = "Danh sách đỏ",
+                        icon = Icons.Default.Warning,
+                        color = Color(0xFF795548), // Brown
+                        onClick = onNavigateToRedList
                     )
                 }
             }

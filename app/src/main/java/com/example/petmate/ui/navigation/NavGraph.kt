@@ -74,6 +74,7 @@ fun NavGraph(
                 onNavigateToReports = { onNavigate(Screen.AdminReportManagement) },
                 onNavigateToLogs = { onNavigate(Screen.AdminLogs) },
                 onNavigateToStats = { onNavigate(Screen.AdminStats) },
+                onNavigateToRedList = { onNavigate(Screen.AdminRedList) },
                 onBack = onPop
             )
         }
@@ -84,6 +85,10 @@ fun NavGraph(
         is Screen.AdminStats -> {
             BackHandler { onPop() }
             AdminStatsScreen(onBack = onPop)
+        }
+        is Screen.AdminRedList -> {
+            BackHandler { onPop() }
+            AdminRedListManagementScreen(onBack = onPop)
         }
         is Screen.AdminRescueApproval -> {
             BackHandler { onPop() }

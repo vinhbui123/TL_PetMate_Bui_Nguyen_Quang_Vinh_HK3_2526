@@ -51,5 +51,6 @@ data class Pet(
     val averageRating: Double? = 0.0,
     val ratingCount: Int? = 0,
     val organization: OrganizationProfileDto? = null,
+    val redListNote: String? = null,
     @DrawableRes val imageRes: Int = R.drawable.beagle_dog
 )

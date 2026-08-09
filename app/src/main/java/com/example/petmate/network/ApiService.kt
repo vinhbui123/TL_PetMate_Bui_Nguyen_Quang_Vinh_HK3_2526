@@ -29,63 +29,66 @@ import retrofit2.Response
 interface ApiService {
     @GET("pets")
     suspend fun getPets(@Query("category") category: String? = null): List<Pet>
-    
+
     @GET("pets/{id}")
     suspend fun getPetById(@Path("id") id: Int): Pet
-    
+
     @POST("user/sync")
     suspend fun syncUser(@Body body: Map<String, String?>): User
-    
+
     @POST("user/fcm-token")
     suspend fun registerFcmToken(@Body body: Map<String, String?>): Response<Unit>
-    
+
     @DELETE("user/fcm-token")
     suspend fun removeFcmToken(@Query("token") token: String): Response<Unit>
-    
+
     @DELETE("user/fcm-token/all")
     suspend fun removeAllFcmTokens(): Response<Unit>
-    
+
     @GET("user/me")
     suspend fun getProfile(): User
-    
+
     @PUT("user/me")
     suspend fun updateProfile(@Body user: User): User
-    
+
     @Multipart
     @POST("user/avatar")
     suspend fun uploadAvatar(@Part image: MultipartBody.Part): User
-    
+
     @GET("pets/my-pets")
     suspend fun getMyPets(): List<Pet>
-    
+
     @GET("pets/org/{orgId}")
     suspend fun getOrgPets(@Path("orgId") orgId: Long): List<Pet>
-    
+
     @GET("pets/user/{userId}")
     suspend fun getPetsByUser(@Path("userId") userId: Long): List<Pet>
-    
+
     @POST("pets")
     suspend fun createPet(@Body petDto: PetRequest): Pet
-    
+
     @PUT("pets/{id}")
     suspend fun updatePet(@Path("id") id: Int, @Body petDto: PetRequest): Pet
-    
+
     @GET("pets/pending")
     suspend fun getPendingPets(): List<Pet>
-    
+
     @GET("pets/admin/all")
     suspend fun getAllPetsAdmin(): List<Pet>
-    
+
     @PUT("pets/{id}/status")
     suspend fun updatePetStatus(@Path("id") id: Int, @Query("status") status: String, @Body empty: Any = Any()): Pet
-    
+
     @DELETE("pets/{id}")
     suspend fun deletePet(@Path("id") id: Int)
-    
+
     @Multipart
     @POST("pets/{id}/image")
     suspend fun uploadPetImage(@Path("id") id: Int, @Part image: MultipartBody.Part): Pet
-    
+
+    @POST("pets/check-red-list")
+    suspend fun checkRedList(@Body petDto: PetRequest): com.example.petmate.model.RedListCheckResult
+
     @PUT("user/location")
     suspend fun updateLocation(@Body body: Map<String, Double>): User
 
@@ -140,10 +143,10 @@ interface ApiService {
 
     @GET("chat/rooms")
     suspend fun getChatRooms(@Query("userId") userId: Long): List<ChatRoom>
-    
+
     @GET("chat/rooms/{roomId}/messages")
     suspend fun getChatMessages(@Path("roomId") roomId: Long): List<Message>
-    
+
     @POST("chat/rooms/start")
     suspend fun getOrCreateRoom(@Body payload: Map<String, Long>): ChatRoom
 
@@ -240,6 +243,27 @@ interface ApiService {
 
     @DELETE("user/ratings/{ratingId}")
     suspend fun deleteRating(@Path("ratingId") ratingId: Long): Response<Unit>
+
+    @GET("admin/red-list")
+    suspend fun getRedList(): List<com.example.petmate.model.RedListSpecies>
+
+    @POST("admin/red-list")
+    suspend fun addRedListSpecies(@Body req: com.example.petmate.model.RedListRequest): com.example.petmate.model.RedListSpecies
+
+    @DELETE("admin/red-list/{id}")
+    suspend fun removeRedListSpecies(@Path("id") id: Long): Response<Unit>
+
+    @GET("admin/red-list/pending")
+    suspend fun getRedListPendingPets(): List<Pet>
+
+    @PUT("admin/red-list/pets/{petId}/approve")
+    suspend fun approveRedListPet(@Path("petId") petId: Int): Pet
+
+    @PUT("admin/red-list/pets/{petId}/reject")
+    suspend fun rejectRedListPet(@Path("petId") petId: Int): Pet
+
+    @GET("pets/pending-red-list")
+    suspend fun getPendingRedListPets(): List<Pet>
 
     @PUT("user/request-rescue-org")
     suspend fun requestRescueOrg(): User

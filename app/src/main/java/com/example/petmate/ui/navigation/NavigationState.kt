@@ -28,6 +28,7 @@ sealed interface Screen {
     data object AdminReportManagement : Screen
     data object AdminStats : Screen
     data object AdminLogs : Screen
+    data object AdminRedList : Screen
     data object SavedPets : Screen
     data object OrgRegistration : Screen
     data class OrgProfile(val org: OrganizationProfileDto) : Screen
