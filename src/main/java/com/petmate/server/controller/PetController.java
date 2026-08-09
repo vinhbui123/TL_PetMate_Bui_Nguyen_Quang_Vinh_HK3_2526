@@ -135,7 +135,7 @@ public class PetController {
     }
 
     @PostMapping("/check-red-list")
-    public ResponseEntity<RedListCheckResult> checkRedList(@RequestBody @jakarta.validation.Valid PetRequestDto dto) {
+    public ResponseEntity<RedListCheckResult> checkRedList(@RequestBody PetRequestDto dto) {
         return ResponseEntity.ok(redListService.checkPet(dto));
     }
 
