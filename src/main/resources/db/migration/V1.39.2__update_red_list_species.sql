@@ -1,3 +1,5 @@
+ALTER TABLE red_list_species ADD COLUMN synonyms TEXT AFTER breed_keyword;
+
 DELETE FROM red_list_species;
 
 INSERT INTO red_list_species (category, breed_keyword, synonyms, protection_level, description) VALUES
