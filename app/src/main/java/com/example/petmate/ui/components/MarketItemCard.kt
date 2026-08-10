@@ -63,9 +63,8 @@ fun MarketItemCard(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    val fallbackRes = if (item.imageRes != 0) item.imageRes else com.example.petmate.R.drawable.beagle_dog
                     Image(
-                        painter = painterResource(fallbackRes),
+                        painter = painterResource(item.imageRes),
                         contentDescription = item.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
