@@ -414,28 +414,40 @@ fun PetDetailsScreen(
                             .background(Color.Black.copy(alpha = 0.5f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "BỊ TỪ CHỐI",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 24.sp,
-                                modifier = Modifier
-                                    .background(Color.Red, RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
-                            if (!pet.redListNote.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                            Surface(
+                                color = Color.Red,
+                                shape = RoundedCornerShape(8.dp),
+                                shadowElevation = 4.dp
+                            ) {
                                 Text(
-                                    text = "Lý do: ${pet.redListNote}",
+                                    text = "BỊ TỪ CHỐI",
                                     color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                                        .padding(8.dp)
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
+                            }
+                            val note = pet.redListNote
+                            if (!note.isNullOrEmpty()) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val translatedNote = note
+                                    .replace("EXACT", "CHÍNH XÁC")
+                                    .replace("PARTIAL", "MỘT PHẦN")
+                                
+                                Surface(
+                                    color = Color.Black.copy(alpha = 0.7f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Lý do: $translatedNote",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
                             }
                             if (currentUserRole == "ADMIN") {
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -490,7 +502,7 @@ fun PetDetailsScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         DetailActionIcon(
                             icon = Icons.Default.Share,
-                            onClick = { 
+                            onClick = {
                                 val sendIntent: Intent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     putExtra(Intent.EXTRA_TEXT, "Hãy xem bé ${pet.name} (${pet.breed}) đang tìm chủ trên ứng dụng PetMate!\nLink: https://test-mobile-app-8c2ce.web.app/pet/${pet.id}")
@@ -569,12 +581,25 @@ fun PetDetailsScreen(
                     lineHeight = 28.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                val priceText = pet.price?.takeIf { it.isNotBlank() && it != "Miễn phí" && it != "0" && it != "0.0" } ?: "Miễn phí"
+                val priceText = remember(pet.price) {
+                    val p = pet.price
+                    if (p.isNullOrBlank() || p == "Miễn phí" || p == "0" || p == "0.0") {
+                        "Miễn phí"
+                    } else {
+                        try {
+                            val amount = p.replace(Regex("[^0-9]"), "").toLong()
+                            val formatter = java.text.DecimalFormat("#,###")
+                            formatter.format(amount).replace(",", ".") + " đ"
+                        } catch (e: Exception) {
+                            p
+                        }
+                    }
+                }
                 Text(
                     text = priceText,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE53935) // Red price like Cho Tot
+                    color = if (priceText == "Miễn phí") SuccessGreen else Color(0xFFE53935)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(

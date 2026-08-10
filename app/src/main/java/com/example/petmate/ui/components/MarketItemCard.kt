@@ -1,6 +1,6 @@
 package com.example.petmate.ui.components
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,10 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -136,14 +134,27 @@ fun MarketItemCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 // Price
-                val isFree = item.price.isNullOrEmpty() || item.price == "0" || item.price == "0.0" || item.price.lowercase().contains("miễn phí")
-                val displayPrice = if (isFree) "Miễn phí" else "${item.price}đ"
+                val formattedPrice = remember(item.price) {
+                    val p = item.price
+                    if (p.isNullOrEmpty() || p == "0" || p == "0.0" || p.lowercase().contains("miễn phí")) {
+                        "Miễn phí"
+                    } else {
+                        try {
+                            val amount = p.replace(Regex("[^0-9]"), "").toLong()
+                            val formatter = java.text.DecimalFormat("#,###")
+                            formatter.format(amount).replace(",", ".") + " đ"
+                        } catch (_: Exception) {
+                            p + " đ"
+                        }
+                    }
+                }
+                val isFree = formattedPrice == "Miễn phí"
                 
                 Text(
-                    text = displayPrice,
+                    text = formattedPrice,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (isFree) PrimaryPeach else ErrorRed
+                    color = if (isFree) SuccessGreen else Color(0xFFE53935)
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
