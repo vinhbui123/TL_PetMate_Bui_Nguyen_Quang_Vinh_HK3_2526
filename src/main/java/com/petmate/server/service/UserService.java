@@ -227,11 +227,20 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiếu token xác thực");
         }
         
-        // Remove old tokens belonging to this user to avoid accumulating tokens
-        deviceTokenRepository.deleteByUserId(user.getId());
+        List<DeviceToken> userTokens = deviceTokenRepository.findByUserId(user.getId());
+        for (DeviceToken dt : userTokens) {
+            if (!dt.getToken().equals(token)) {
+                deviceTokenRepository.delete(dt);
+            }
+        }
         
-        // Upsert the token to handle concurrent requests gracefully and assign it to this user
-        deviceTokenRepository.upsertToken(token, user.getId());
+        DeviceToken deviceToken = deviceTokenRepository.findById(token).orElse(null);
+        if (deviceToken == null) {
+            deviceToken = DeviceToken.builder().token(token).user(user).build();
+        } else {
+            deviceToken.setUser(user);
+        }
+        deviceTokenRepository.save(deviceToken);
         
         touchLastActive(user);
         userRepository.save(user);
