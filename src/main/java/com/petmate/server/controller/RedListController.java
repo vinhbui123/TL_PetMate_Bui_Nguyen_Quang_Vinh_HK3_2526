@@ -118,4 +118,16 @@ public class RedListController {
             return ResponseEntity.status(e.getStatusCode()).build();
         }
     }
+
+    @PutMapping("/pets/{petId}/unlock")
+    public ResponseEntity<Pet> unlockPet(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long petId) {
+        try {
+            checkAdmin(jwt);
+            return ResponseEntity.ok(petService.unlockPet(jwt, petId));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
 }

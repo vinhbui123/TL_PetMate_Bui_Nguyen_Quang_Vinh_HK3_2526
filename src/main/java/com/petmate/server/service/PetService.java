@@ -220,6 +220,39 @@ public class PetService {
         return pet;
     }
 
+    public Pet unlockPet(Jwt jwt, Long id) {
+        User currentUser = userService.getCurrentUserOrThrow(jwt);
+
+        if (currentUser.getRole() != RoleType.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Từ chối truy cập");
+        }
+
+        Pet pet = petRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thú cưng"));
+
+        if (pet.getStatus() != AdStatus.REJECTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thú cưng này chưa bị từ chối");
+        }
+
+        pet.setStatus(AdStatus.AVAILABLE);
+        pet.setRedListNote(null);
+        petRepository.save(pet);
+
+        User owner = pet.getUser();
+        if (owner != null) {
+            if (owner.getViolationCount() > 0) {
+                owner.setViolationCount(owner.getViolationCount() - 1);
+                userRepository.save(owner);
+            }
+
+            String title = "Đính chính Tin đăng";
+            String body = "Tin đăng thú cưng '" + pet.getName() + "' của bạn đã được khôi phục do nhầm lẫn.";
+            firebaseService.sendNotification(owner.getId(), title, body, null);
+        }
+
+        return pet;
+    }
+
     public Pet updatePet(Jwt jwt, Long id, PetRequestDto dto) {
         String uid = jwt.getSubject();
         
