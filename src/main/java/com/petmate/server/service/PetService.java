@@ -108,8 +108,8 @@ public class PetService {
                 .weight(dto.getWeight() != null && !dto.getWeight().isBlank() ? Double.parseDouble(dto.getWeight().trim()) : null)
                 .gender(dto.getGender())
                 .price(parsedPrice)
-                .isVaccinated(Optional.ofNullable(dto.getIsVaccinated()).orElse(false))
-                .isNeutered(Optional.ofNullable(dto.getIsNeutered()).orElse(false))
+                .isVaccinated(dto.getIsVaccinated() != null ? dto.getIsVaccinated() : false)
+                .isNeutered(dto.getIsNeutered() != null ? dto.getIsNeutered() : false)
                 .description(dto.getDescription())
                 .category(dto.getCategory())
                 .status(AdStatus.PENDING)
@@ -235,21 +235,36 @@ public class PetService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Từ chối truy cập");
         }
 
-        Optional.ofNullable(dto.getName()).ifPresent(pet::setName);
-        Optional.ofNullable(dto.getBreed()).ifPresent(pet::setBreed);
-        Optional.ofNullable(dto.getListingType()).ifPresent(pet::setListingType);
-        Optional.ofNullable(dto.getAge()).filter(s -> !s.isBlank()).ifPresent(a -> pet.setAgeMonths(Integer.parseInt(a.trim())));
-        Optional.ofNullable(dto.getWeight()).filter(s -> !s.isBlank()).ifPresent(w -> pet.setWeight(Double.parseDouble(w.trim())));
-        Optional.ofNullable(dto.getGender()).ifPresent(pet::setGender);
-        Optional.ofNullable(dto.getPrice()).ifPresent(p -> pet.setPrice(parsePrice(p)));
-        Optional.ofNullable(dto.getIsVaccinated()).ifPresent(pet::setIsVaccinated);
-        Optional.ofNullable(dto.getIsNeutered()).ifPresent(pet::setIsNeutered);
-        Optional.ofNullable(dto.getDescription()).ifPresent(pet::setDescription);
-        Optional.ofNullable(dto.getCategory()).ifPresent(pet::setCategory);
-        Optional.ofNullable(dto.getStatus()).ifPresent(pet::setStatus);
-        Optional.ofNullable(dto.getAddress()).ifPresent(pet::setAddress);
-        Optional.ofNullable(dto.getLatitude()).ifPresent(pet::setLatitude);
-        Optional.ofNullable(dto.getLongitude()).ifPresent(pet::setLongitude);
+        if (dto.getName() != null) pet.setName(dto.getName());
+        if (dto.getBreed() != null) pet.setBreed(dto.getBreed());
+        if (dto.getListingType() != null) pet.setListingType(dto.getListingType());
+        
+        if (dto.getAge() != null && !dto.getAge().isBlank()) {
+            try {
+                pet.setAgeMonths(Integer.parseInt(dto.getAge().trim()));
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        if (dto.getWeight() != null && !dto.getWeight().isBlank()) {
+            try {
+                pet.setWeight(Double.parseDouble(dto.getWeight().trim()));
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        if (dto.getGender() != null) pet.setGender(dto.getGender());
+        if (dto.getPrice() != null) pet.setPrice(parsePrice(dto.getPrice()));
+        if (dto.getIsVaccinated() != null) pet.setIsVaccinated(dto.getIsVaccinated());
+        if (dto.getIsNeutered() != null) pet.setIsNeutered(dto.getIsNeutered());
+        if (dto.getDescription() != null) pet.setDescription(dto.getDescription());
+        if (dto.getCategory() != null) pet.setCategory(dto.getCategory());
+        if (dto.getStatus() != null) pet.setStatus(dto.getStatus());
+        if (dto.getAddress() != null) pet.setAddress(dto.getAddress());
+        if (dto.getLatitude() != null) pet.setLatitude(dto.getLatitude());
+        if (dto.getLongitude() != null) pet.setLongitude(dto.getLongitude());
 
         if (dto.getOrganizationId() != null) {
             com.petmate.server.entity.OrganizationProfile org = orgRepository.findById(dto.getOrganizationId())

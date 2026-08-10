@@ -20,10 +20,10 @@ public class PetRequestDto {
     @NotBlank(message = "Vui lòng nhập giống")
     private String breed;
     
-    @Pattern(regexp = "^[0-9]*$", message = "Tuổi chỉ được nhập số")
+    @Pattern(regexp = "^\\s*[0-9]*\\s*$", message = "Tuổi chỉ được nhập số")
     private String age;
 
-    @Pattern(regexp = "^[0-9]*(?:\\.[0-9]+)?$", message = "Cân nặng chỉ được nhập số")
+    @Pattern(regexp = "^\\s*[0-9]*(?:\\.[0-9]+)?\\s*$", message = "Cân nặng chỉ được nhập số")
     private String weight;
     private Gender gender;
     private String price;
