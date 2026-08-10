@@ -77,8 +77,9 @@ public class PetService {
 
     public Pet createPet(Jwt jwt, PetRequestDto dto) {
         ListingType listingType = Optional.ofNullable(dto.getListingType()).orElse(ListingType.SALE);
+        BigDecimal parsedPrice = parsePrice(dto.getPrice());
 
-        if (listingType == ListingType.SALE && (dto.getPrice() == null || dto.getPrice().compareTo(BigDecimal.ZERO) <= 0)) {
+        if (listingType == ListingType.SALE && (parsedPrice == null || parsedPrice.compareTo(BigDecimal.ZERO) <= 0)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bắt buộc phải nhập giá cho bài đăng bán");
         }
 
@@ -102,7 +103,7 @@ public class PetService {
                 .ageMonths(dto.getAge() != null && !dto.getAge().isEmpty() ? Integer.parseInt(dto.getAge()) : null)
                 .weight(dto.getWeight() != null && !dto.getWeight().isEmpty() ? Double.parseDouble(dto.getWeight()) : null)
                 .gender(dto.getGender())
-                .price(parsePrice(dto.getPrice()))
+                .price(parsedPrice)
                 .isVaccinated(Optional.ofNullable(dto.getIsVaccinated()).orElse(false))
                 .isNeutered(Optional.ofNullable(dto.getIsNeutered()).orElse(false))
                 .description(dto.getDescription())
@@ -300,12 +301,12 @@ public class PetService {
         }
     }
 
-    private java.math.BigDecimal parsePrice(String priceStr) {
+    private BigDecimal parsePrice(String priceStr) {
         if (priceStr == null || priceStr.trim().isEmpty() || priceStr.equalsIgnoreCase("Miễn phí")) {
             return null;
         }
         try {
-            return new java.math.BigDecimal(priceStr);
+            return new BigDecimal(priceStr);
         } catch (NumberFormatException e) {
             return null;
         }
