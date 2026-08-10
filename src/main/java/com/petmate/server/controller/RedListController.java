@@ -113,7 +113,7 @@ public class RedListController {
             @PathVariable Long petId) {
         try {
             checkAdmin(jwt);
-            return ResponseEntity.ok(petService.updatePetStatus(jwt, petId, AdStatus.REJECTED));
+            return ResponseEntity.ok(petService.rejectRedListPet(jwt, petId));
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).build();
         }

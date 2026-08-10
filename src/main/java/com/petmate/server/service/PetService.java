@@ -102,7 +102,7 @@ public class PetService {
                 .ageMonths(dto.getAge() != null && !dto.getAge().isEmpty() ? Integer.parseInt(dto.getAge()) : null)
                 .weight(dto.getWeight() != null && !dto.getWeight().isEmpty() ? Double.parseDouble(dto.getWeight()) : null)
                 .gender(dto.getGender())
-                .price(dto.getPrice())
+                .price(parsePrice(dto.getPrice()))
                 .isVaccinated(Optional.ofNullable(dto.getIsVaccinated()).orElse(false))
                 .isNeutered(Optional.ofNullable(dto.getIsNeutered()).orElse(false))
                 .description(dto.getDescription())
@@ -189,6 +189,32 @@ public class PetService {
         return pet;
     }
 
+    public Pet rejectRedListPet(Jwt jwt, Long id) {
+        User currentUser = userService.getCurrentUserOrThrow(jwt);
+
+        if (currentUser.getRole() != RoleType.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Từ chối truy cập");
+        }
+
+        Pet pet = petRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thú cưng"));
+
+        pet.setStatus(AdStatus.REJECTED);
+        petRepository.save(pet);
+
+        User owner = pet.getUser();
+        if (owner != null) {
+            owner.setViolationCount(owner.getViolationCount() + 1);
+            userRepository.save(owner);
+
+            String title = "Cảnh báo Vi phạm";
+            String body = "Bài đăng thú cưng '" + pet.getName() + "' bị từ chối - Vi phạm quy định động vật hoang dã / danh sách đỏ.";
+            firebaseService.sendNotification(owner.getId(), title, body, null);
+        }
+
+        return pet;
+    }
+
     public Pet updatePet(Jwt jwt, Long id, PetRequestDto dto) {
         String uid = jwt.getSubject();
         
@@ -210,7 +236,7 @@ public class PetService {
         Optional.ofNullable(dto.getAge()).filter(s -> !s.isEmpty()).ifPresent(a -> pet.setAgeMonths(Integer.parseInt(a)));
         Optional.ofNullable(dto.getWeight()).filter(s -> !s.isEmpty()).ifPresent(w -> pet.setWeight(Double.parseDouble(w)));
         Optional.ofNullable(dto.getGender()).ifPresent(pet::setGender);
-        Optional.ofNullable(dto.getPrice()).ifPresent(pet::setPrice);
+        Optional.ofNullable(dto.getPrice()).ifPresent(p -> pet.setPrice(parsePrice(p)));
         Optional.ofNullable(dto.getIsVaccinated()).ifPresent(pet::setIsVaccinated);
         Optional.ofNullable(dto.getIsNeutered()).ifPresent(pet::setIsNeutered);
         Optional.ofNullable(dto.getDescription()).ifPresent(pet::setDescription);
@@ -271,6 +297,17 @@ public class PetService {
             return petRepository.save(pet);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi tải ảnh lên", e);
+        }
+    }
+
+    private java.math.BigDecimal parsePrice(String priceStr) {
+        if (priceStr == null || priceStr.trim().isEmpty() || priceStr.equalsIgnoreCase("Miễn phí")) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(priceStr);
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }

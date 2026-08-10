@@ -26,7 +26,7 @@ public class PetRequestDto {
     @Pattern(regexp = "^[0-9]*(?:\\.[0-9]+)?$", message = "Cân nặng chỉ được nhập số")
     private String weight;
     private Gender gender;
-    private BigDecimal price;
+    private String price;
     private String description;
     private String category;
     private String address;
