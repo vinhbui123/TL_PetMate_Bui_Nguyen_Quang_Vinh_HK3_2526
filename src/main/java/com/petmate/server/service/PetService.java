@@ -104,8 +104,8 @@ public class PetService {
                 .name(dto.getName())
                 .breed(dto.getBreed())
                 .listingType(listingType)
-                .ageMonths(dto.getAge() != null && !dto.getAge().isEmpty() ? Integer.parseInt(dto.getAge()) : null)
-                .weight(dto.getWeight() != null && !dto.getWeight().isEmpty() ? Double.parseDouble(dto.getWeight()) : null)
+                .ageMonths(dto.getAge() != null && !dto.getAge().isBlank() ? Integer.parseInt(dto.getAge().trim()) : null)
+                .weight(dto.getWeight() != null && !dto.getWeight().isBlank() ? Double.parseDouble(dto.getWeight().trim()) : null)
                 .gender(dto.getGender())
                 .price(parsedPrice)
                 .isVaccinated(Optional.ofNullable(dto.getIsVaccinated()).orElse(false))
@@ -238,8 +238,8 @@ public class PetService {
         Optional.ofNullable(dto.getName()).ifPresent(pet::setName);
         Optional.ofNullable(dto.getBreed()).ifPresent(pet::setBreed);
         Optional.ofNullable(dto.getListingType()).ifPresent(pet::setListingType);
-        Optional.ofNullable(dto.getAge()).filter(s -> !s.isEmpty()).ifPresent(a -> pet.setAgeMonths(Integer.parseInt(a)));
-        Optional.ofNullable(dto.getWeight()).filter(s -> !s.isEmpty()).ifPresent(w -> pet.setWeight(Double.parseDouble(w)));
+        Optional.ofNullable(dto.getAge()).filter(s -> !s.isBlank()).ifPresent(a -> pet.setAgeMonths(Integer.parseInt(a.trim())));
+        Optional.ofNullable(dto.getWeight()).filter(s -> !s.isBlank()).ifPresent(w -> pet.setWeight(Double.parseDouble(w.trim())));
         Optional.ofNullable(dto.getGender()).ifPresent(pet::setGender);
         Optional.ofNullable(dto.getPrice()).ifPresent(p -> pet.setPrice(parsePrice(p)));
         Optional.ofNullable(dto.getIsVaccinated()).ifPresent(pet::setIsVaccinated);
