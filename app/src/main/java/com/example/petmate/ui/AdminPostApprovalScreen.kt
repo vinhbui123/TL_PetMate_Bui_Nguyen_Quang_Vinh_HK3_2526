@@ -1,15 +1,15 @@
 package com.example.petmate.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,13 +30,14 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminPostApprovalScreen(onBack: () -> Unit) {
+fun AdminPostApprovalScreen(onBack: () -> Unit, onPetClick: (Pet) -> Unit = {}) {
     var pendingPets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var allPets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Chờ duyệt", "Tất cả")
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     var petToDelete by remember { mutableStateOf<Pet?>(null) }
 
@@ -133,7 +134,21 @@ fun AdminPostApprovalScreen(onBack: () -> Unit) {
                                                     }
                                                 }
                                             },
-                                            onDeleteClick = { petToDelete = pet }
+                                            onDeleteClick = { petToDelete = pet },
+                                            onUnlockClick = {
+                                                coroutineScope.launch {
+                                                    try {
+                                                        NetworkClient.apiService.unlockRedListPet(pet.id)
+                                                        android.widget.Toast.makeText(context, "Mở khóa thành công!", android.widget.Toast.LENGTH_SHORT).show()
+                                                        allPets = NetworkClient.apiService.getAllPetsAdmin()
+                                                        pendingPets = NetworkClient.apiService.getPendingPets()
+                                                    } catch (e: Exception) {
+                                                        e.printStackTrace()
+                                                        android.widget.Toast.makeText(context, "Lỗi khi mở khóa!", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            onPetClick = { onPetClick(pet) }
                                         )
                                     }
                                 }
@@ -180,11 +195,11 @@ fun AdminPostApprovalScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun PendingPetCard(pet: Pet, onStatusChange: (String) -> Unit) {
+fun PendingPetCard(pet: Pet, onStatusChange: (String) -> Unit, onPetClick: () -> Unit = {}) {
     val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
     
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onPetClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -199,7 +214,12 @@ fun PendingPetCard(pet: Pet, onStatusChange: (String) -> Unit) {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray))
+                    Box(
+                        modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Pets, contentDescription = "Không có ảnh", tint = Color.Gray, modifier = Modifier.size(32.dp))
+                    }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -247,7 +267,7 @@ fun PendingPetCard(pet: Pet, onStatusChange: (String) -> Unit) {
                     onClick = { onStatusChange("REJECTED") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
+                    border = BorderStroke(1.dp, Color.Red),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Từ chối")
@@ -258,7 +278,7 @@ fun PendingPetCard(pet: Pet, onStatusChange: (String) -> Unit) {
 }
 
 @Composable
-fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -> Unit) {
+fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -> Unit, onUnlockClick: () -> Unit = {}, onPetClick: () -> Unit = {}) {
     val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
     
     val statusText = when (pet.status) {
@@ -280,7 +300,7 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onPetClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -295,7 +315,12 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray))
+                    Box(
+                        modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Pets, contentDescription = "Không có ảnh", tint = Color.Gray, modifier = Modifier.size(32.dp))
+                    }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -334,12 +359,24 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
 
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (pet.status != "REJECTED" && pet.status != "HIDDEN" && pet.status != "REQUIRES_REVIEW") {
+                if (pet.status == "REJECTED") {
+                    OutlinedButton(
+                        onClick = onUnlockClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4CAF50)),
+                        border = BorderStroke(1.dp, Color(0xFF4CAF50)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Mở khóa")
+                    }
+                } else if (pet.status != "HIDDEN" && pet.status != "REQUIRES_REVIEW") {
                     OutlinedButton(
                         onClick = { onStatusChange("REJECTED") },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFFA000)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFA000)),
+                        border = BorderStroke(1.dp, Color(0xFFFFA000)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -351,7 +388,7 @@ fun AdminPetCard(pet: Pet, onStatusChange: (String) -> Unit, onDeleteClick: () -
                     onClick = onDeleteClick,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
+                    border = BorderStroke(1.dp, Color.Red),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))

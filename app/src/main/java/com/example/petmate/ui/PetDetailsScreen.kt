@@ -57,7 +57,8 @@ fun PetDetailsScreen(
     onPetClick: (Pet) -> Unit = {},
     userLatitude: Double? = null,
     userLongitude: Double? = null,
-    currentUserId: Long? = null
+    currentUserId: Long? = null,
+    currentUserRole: String? = null
 ) {
     var pet by remember(initialPet.id) { mutableStateOf(initialPet) }
     
@@ -200,12 +201,17 @@ fun PetDetailsScreen(
                         contentScale = ContentScale.Fit
                     )
                 } else {
-                    Image(
-                        painter = painterResource(pet.imageRes),
-                        contentDescription = pet.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Pets,
+                            contentDescription = "Không có ảnh",
+                            tint = Color.DarkGray,
+                            modifier = Modifier.size(100.dp)
+                        )
+                    }
                 }
                 
                 // Close Button
@@ -351,14 +357,19 @@ fun PetDetailsScreen(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Image(
-                        painter = painterResource(pet.imageRes),
-                        contentDescription = pet.name,
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clickable { showFullScreenImage = true },
-                        contentScale = ContentScale.Crop
-                    )
+                            .background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Pets,
+                            contentDescription = "Không có ảnh",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(64.dp)
+                        )
+                    }
                 }
                 
                 // Status Overlay
@@ -425,6 +436,26 @@ fun PetDetailsScreen(
                                         .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
                                         .padding(8.dp)
                                 )
+                            }
+                            if (currentUserRole == "ADMIN") {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                com.example.petmate.network.NetworkClient.apiService.unlockRedListPet(pet.id)
+                                                android.widget.Toast.makeText(context, "Mở khóa thành công!", android.widget.Toast.LENGTH_SHORT).show()
+                                                currentPetStatus = "AVAILABLE"
+                                                pet = pet.copy(status = "AVAILABLE", redListNote = null)
+                                            } catch (e: Exception) {
+                                                android.widget.Toast.makeText(context, "Lỗi khi mở khóa!", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                                ) {
+                                    Text("Mở khóa (Admin)", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

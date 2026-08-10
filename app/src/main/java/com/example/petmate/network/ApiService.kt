@@ -262,6 +262,9 @@ interface ApiService {
     @PUT("admin/red-list/pets/{petId}/reject")
     suspend fun rejectRedListPet(@Path("petId") petId: Int): Pet
 
+    @PUT("admin/red-list/pets/{petId}/unlock")
+    suspend fun unlockRedListPet(@Path("petId") petId: Int): Pet
+
     @GET("pets/pending-red-list")
     suspend fun getPendingRedListPets(): List<Pet>
 

@@ -2,6 +2,7 @@ package com.example.petmate.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,7 +36,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminRedListManagementScreen(onBack: () -> Unit) {
+fun AdminRedListManagementScreen(onBack: () -> Unit, onPetClick: (Pet) -> Unit = {}) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Danh sách đỏ", "Tin chờ duyệt")
 
@@ -89,7 +90,7 @@ fun AdminRedListManagementScreen(onBack: () -> Unit) {
 
             when (selectedTab) {
                 0 -> RedListSpeciesTab()
-                1 -> RedListReviewTab()
+                1 -> RedListReviewTab(onPetClick = onPetClick)
             }
         }
     }
@@ -350,7 +351,7 @@ fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Un
 }
 
 @Composable
-fun RedListReviewTab() {
+fun RedListReviewTab(onPetClick: (Pet) -> Unit = {}) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -383,6 +384,7 @@ fun RedListReviewTab() {
                 items(pendingPets) { pet ->
                     RedListPendingPetCard(
                         pet = pet,
+                        onClick = { onPetClick(pet) },
                         onApprove = {
                             coroutineScope.launch {
                                 try {
@@ -413,9 +415,9 @@ fun RedListReviewTab() {
 }
 
 @Composable
-fun RedListPendingPetCard(pet: Pet, onApprove: () -> Unit, onReject: () -> Unit) {
+fun RedListPendingPetCard(pet: Pet, onApprove: () -> Unit, onReject: () -> Unit, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = SoftPeach),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -431,7 +433,7 @@ fun RedListPendingPetCard(pet: Pet, onApprove: () -> Unit, onReject: () -> Unit)
                     )
                 } else {
                     Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(12.dp)).background(IconGray.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
-                        Text("Không có ảnh", color = TextGray, fontSize = 10.sp)
+                        Icon(Icons.Default.Pets, contentDescription = "Không có ảnh", tint = TextGray, modifier = Modifier.size(40.dp))
                     }
                 }
                 Spacer(modifier = Modifier.width(16.dp))

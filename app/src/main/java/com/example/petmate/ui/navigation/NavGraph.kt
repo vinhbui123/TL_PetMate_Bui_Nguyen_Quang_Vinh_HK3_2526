@@ -88,7 +88,10 @@ fun NavGraph(
         }
         is Screen.AdminRedList -> {
             BackHandler { onPop() }
-            AdminRedListManagementScreen(onBack = onPop)
+            AdminRedListManagementScreen(
+                onBack = onPop,
+                onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) }
+            )
         }
         is Screen.AdminRescueApproval -> {
             BackHandler { onPop() }
@@ -96,7 +99,10 @@ fun NavGraph(
         }
         is Screen.AdminPostApproval -> {
             BackHandler { onPop() }
-            AdminPostApprovalScreen(onBack = onPop)
+            AdminPostApprovalScreen(
+                onBack = onPop,
+                onPetClick = { pet -> onNavigate(Screen.PetDetails(pet)) }
+            )
         }
         is Screen.AdminBroadcast -> {
             BackHandler { onPop() }
@@ -243,6 +249,7 @@ fun NavGraph(
             PetDetailsScreen(
                 initialPet = currentScreen.pet,
                 onBackClick = onPop,
+                currentUserRole = currentUser?.role,
                 onAdoptClick = {
                     if (currentUser == null) {
                         Toast.makeText(context, "Vui lòng đăng nhập để nhận nuôi!", Toast.LENGTH_SHORT).show()
