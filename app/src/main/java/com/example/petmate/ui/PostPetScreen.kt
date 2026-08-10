@@ -235,7 +235,7 @@ fun PostPetScreen(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = if (isProhibited) "🔴 Cấm giao dịch" else "⚠️ Cần xem xét Danh sách đỏ",
+                                    text = if (isProhibited) "Cấm giao dịch" else "Cần xem xét Danh sách đỏ",
                                     fontWeight = FontWeight.Bold,
                                     color = if (isProhibited) Color.Red else Color(0xFFFFA000)
                                 )
