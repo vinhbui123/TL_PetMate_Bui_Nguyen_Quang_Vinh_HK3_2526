@@ -76,8 +76,12 @@ public class PetService {
     }
 
     public Pet createPet(Jwt jwt, PetRequestDto dto) {
-        ListingType listingType = Optional.ofNullable(dto.getListingType()).orElse(ListingType.SALE);
         BigDecimal parsedPrice = parsePrice(dto.getPrice());
+        ListingType listingType = dto.getListingType();
+        
+        if (listingType == null) {
+            listingType = (parsedPrice == null || parsedPrice.compareTo(BigDecimal.ZERO) <= 0) ? ListingType.ADOPTION : ListingType.SALE;
+        }
 
         if (listingType == ListingType.SALE && (parsedPrice == null || parsedPrice.compareTo(BigDecimal.ZERO) <= 0)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bắt buộc phải nhập giá cho bài đăng bán");
