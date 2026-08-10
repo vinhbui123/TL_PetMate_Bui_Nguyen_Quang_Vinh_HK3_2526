@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
@@ -206,14 +207,23 @@ fun SellerProfileScreen(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = sellerInfo?.fullName ?: "Người dùng ẩn danh",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isOrgProfile) Icons.Default.Business else Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = if (isOrgProfile) com.example.petmate.ui.theme.SuccessGreen else com.example.petmate.ui.theme.AccentOrange,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = sellerInfo?.fullName ?: "Người dùng ẩn danh",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
                             if (sellerInfo?.identityVerified == true) {
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
                                 VerifiedBadge(size = 20.dp)
                             }
                             Spacer(modifier = Modifier.height(4.dp))

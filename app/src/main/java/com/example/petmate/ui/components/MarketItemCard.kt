@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Person
@@ -81,7 +82,7 @@ fun MarketItemCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = if (isOrg) Icons.Default.Verified else Icons.Default.Person,
+                            imageVector = if (isOrg) Icons.Default.Business else Icons.Default.Person,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(12.dp)

@@ -10,8 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -192,15 +194,25 @@ fun AdminUserCard(
                 // Role indicator
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Quyền: ", fontSize = 14.sp, color = Color.Gray)
+                    val role = user.role.toString()
+                    val roleIcon = when (role) {
+                        "ADMIN" -> Icons.Default.ManageAccounts
+                        "RESCUE_ORG" -> Icons.Default.Business
+                        else -> Icons.Default.Person
+                    }
+                    val roleColor = when (role) {
+                        "ADMIN" -> Color(0xFF9C27B0)
+                        "RESCUE_ORG" -> Color(0xFF2196F3)
+                        else -> Color.DarkGray
+                    }
+                    
+                    Icon(roleIcon, contentDescription = null, tint = roleColor, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = user.role.toString(),
+                        text = role,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = when (user.role.toString()) {
-                            "ADMIN" -> Color(0xFF9C27B0)
-                            "RESCUE_ORG" -> Color(0xFF2196F3)
-                            else -> Color.DarkGray
-                        }
+                        color = roleColor
                     )
                 }
                 

@@ -8,11 +8,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -131,10 +133,19 @@ fun PostPetScreen(
                             .fillMaxWidth()
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Business, contentDescription = null, tint = PrimaryPeach)
+                        }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Đăng dưới danh nghĩa Tổ chức", fontWeight = FontWeight.Bold)
+                            Text("Đăng dưới danh nghĩa Tổ chức", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Text(myOrg?.name ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                         }
                         Switch(checked = postAsOrg, onCheckedChange = { postAsOrg = it })

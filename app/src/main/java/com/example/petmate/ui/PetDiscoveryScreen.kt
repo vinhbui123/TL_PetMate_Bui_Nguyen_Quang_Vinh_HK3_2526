@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
@@ -413,7 +414,7 @@ fun PetCard(
                     modifier = Modifier.align(Alignment.TopStart)
                 ) {
                     Icon(
-                        imageVector = if (isOrg) Icons.Default.Verified else Icons.Default.Person,
+                        imageVector = if (isOrg) Icons.Default.Business else Icons.Default.Person,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.padding(4.dp).size(12.dp)
