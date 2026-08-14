@@ -227,20 +227,17 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiếu token xác thực");
         }
         
+        // Xóa các token cũ của user (giữ lại token hiện tại)
         List<DeviceToken> userTokens = deviceTokenRepository.findByUserId(user.getId());
         for (DeviceToken dt : userTokens) {
             if (!dt.getToken().equals(token)) {
                 deviceTokenRepository.delete(dt);
             }
         }
+        deviceTokenRepository.flush();
         
-        DeviceToken deviceToken = deviceTokenRepository.findById(token).orElse(null);
-        if (deviceToken == null) {
-            deviceToken = DeviceToken.builder().token(token).user(user).build();
-        } else {
-            deviceToken.setUser(user);
-        }
-        deviceTokenRepository.save(deviceToken);
+        // Dùng upsert atomic để tránh race condition gây Duplicate entry
+        deviceTokenRepository.upsertToken(token, user.getId());
         
         touchLastActive(user);
         userRepository.save(user);
