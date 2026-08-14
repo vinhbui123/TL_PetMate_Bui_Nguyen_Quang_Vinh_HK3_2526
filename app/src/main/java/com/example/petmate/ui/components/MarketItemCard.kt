@@ -16,7 +16,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.petmate.model.Pet
 import com.example.petmate.ui.theme.*
@@ -71,29 +70,22 @@ fun MarketItemCard(
                 }
                 
                 // Badge overlay at top-left
-                Surface(
-                    color = (if (isOrg) SuccessGreen else AccentOrange).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(bottomEnd = 12.dp),
-                    modifier = Modifier.align(Alignment.TopStart)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = (if (isOrg) SuccessGreen else AccentOrange).copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(bottomEnd = 16.dp)
+                        )
+                        .align(Alignment.TopStart),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (isOrg) Icons.Default.Business else Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isOrg) "Tổ chức" else "Cá nhân",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Icon(
+                        imageVector = if (isOrg) Icons.Default.HomeWork else Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
             

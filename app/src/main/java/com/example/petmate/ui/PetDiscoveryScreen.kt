@@ -2,7 +2,6 @@ package com.example.petmate.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,12 +11,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.HomeWork
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -25,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,7 +80,7 @@ fun PetDiscoveryScreen(
     var filterMaxDistance by remember { mutableFloatStateOf(100f) }
     var filterArea by remember { mutableStateOf("") }
 
-    var refreshTrigger by remember { mutableStateOf(0) }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedCategory, refreshTrigger) {
@@ -389,7 +389,7 @@ fun PetCard(
             ) {
                 if (!pet.imageUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        model = coil.request.ImageRequest.Builder(LocalContext.current)
                             .data(pet.imageUrl)
                             .crossfade(true)
                             .size(300)
@@ -399,25 +399,37 @@ fun PetCard(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Image(
-                        painter = painterResource(pet.imageRes),
-                        contentDescription = pet.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Pets,
+                            contentDescription = "Không có ảnh",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
                 }
                 
                 // Badge overlay at top-left of image
-                Surface(
-                    color = (if (isOrg) SuccessGreen else AccentOrange).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(bottomEnd = 12.dp),
-                    modifier = Modifier.align(Alignment.TopStart)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = (if (isOrg) SuccessGreen else AccentOrange).copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(bottomEnd = 16.dp)
+                        )
+                        .align(Alignment.TopStart),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isOrg) Icons.Default.Business else Icons.Default.Person,
+                        imageVector = if (isOrg) Icons.Default.HomeWork else Icons.Default.Person,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.padding(4.dp).size(12.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }

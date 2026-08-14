@@ -940,19 +940,21 @@ fun PetDetailsScreen(
                 )
             }
             
-            // Characteristics (Minimalist list without heavy icons)
+            // Characteristics (Icon-based list)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
                     .padding(16.dp)
             ) {
-                Text("Đặc điểm thú cưng", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
-                Spacer(modifier = Modifier.height(16.dp))
+                Text("Thông tin chi tiết", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
+                Spacer(modifier = Modifier.height(20.dp))
+                
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
-                        SpecRow("Giống", pet.breed ?: "Chưa rõ")
-                        SpecRow("Độ tuổi (tháng)", pet.age ?: "Chưa rõ")
+                        SpecRow(Icons.Default.Pets, "Giống", pet.breed)
+                        SpecRow(Icons.Default.Cake, "Độ tuổi (tháng)", pet.age)
+                        SpecRow(Icons.Default.Vaccines, "Tiêm phòng", if (pet.isVaccinated) "Đã tiêm" else "Chưa tiêm")
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -961,10 +963,9 @@ fun PetDetailsScreen(
                             "female" -> "Cái"
                             else -> pet.sex ?: "Chưa rõ"
                         }
-                        SpecRow("Giới tính", displaySex)
-                        SpecRow("Trọng lượng (kg)", pet.weight ?: "Chưa rõ")
-                        SpecRow("Tiêm phòng", if (pet.isVaccinated) "Đã tiêm" else "Chưa tiêm")
-                        SpecRow("Triệt sản", if (pet.isNeutered) "Đã triệt sản" else "Chưa")
+                        SpecRow(Icons.Default.Transgender, "Giới tính", displaySex)
+                        SpecRow(Icons.Default.MonitorWeight, "Trọng lượng (kg)", pet.weight)
+                        SpecRow(Icons.Default.ContentCut, "Triệt sản", if (pet.isNeutered) "Đã triệt sản" else "Chưa")
                     }
                 }
             }
@@ -1001,7 +1002,7 @@ fun PetDetailsScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Security, contentDescription = "Security", tint = Color(0xFFFBC02D))
+                Icon(Icons.Default.Shield, contentDescription = "Bảo mật", tint = Color(0xFFFBC02D))
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Giao dịch an toàn: Tuyệt đối không chuyển tiền cọc trước khi gặp mặt và kiểm tra thú cưng.",
@@ -1056,11 +1057,37 @@ fun DetailActionIcon(
 }
 
 @Composable
-fun SpecRow(label: String, value: String?) {
-    Column(modifier = Modifier.padding(bottom = 12.dp)) {
-        Text(text = label, fontSize = 12.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(text = value ?: "Đang cập nhật", fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+fun SpecRow(icon: ImageVector, label: String, value: String?) {
+    Row(
+        modifier = Modifier.padding(bottom = 20.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = Color(0xFFF5F5F5),
+            modifier = Modifier.size(40.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(text = label, fontSize = 11.sp, color = Color.Gray)
+            Text(
+                text = value ?: "Chưa rõ", 
+                fontSize = 14.sp, 
+                color = Color.Black, 
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -1097,9 +1124,9 @@ fun BottomActionBar(
                     ),
                     border = BorderStroke(1.dp, PrimaryPeach)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat", modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Trò chuyện", modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Chat", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Trò chuyện", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 
                 when (adoptionStatus) {
@@ -1171,16 +1198,16 @@ fun BottomActionBar(
                 // Chat Button for paid pets - Trò chuyện trực tiếp với người bán
                 Button(
                     onClick = onChatClick,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryPeach,
-                        contentColor = Color.White
+                        containerColor = Color(0xFFE6D7CB), // Beige color like in image
+                        contentColor = Color(0xFF5D4037)  // Deep brown for text/icon
                     )
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Trò chuyện với người bán", modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Trò chuyện trực tiếp với người bán", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Trò chuyện", modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Trò chuyện trực tiếp với người bán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }

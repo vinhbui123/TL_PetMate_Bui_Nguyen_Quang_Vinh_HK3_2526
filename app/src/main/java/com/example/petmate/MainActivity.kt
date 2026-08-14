@@ -78,20 +78,28 @@ fun PetMateApp() {
             val scope = rememberCoroutineScope()
             MainContent(onLogout = { 
                 scope.launch {
-                    // 1. Remove ALL FCM tokens for this user from server (robust against token mismatch)
+                    // 1. Remove ALL FCM tokens for this user from server first (needs auth)
                     try {
- val resp = NetworkClient.apiService.removeAllFcmTokens()
+                        val resp = NetworkClient.apiService.removeAllFcmTokens()
                         if (!resp.isSuccessful) {
                             android.util.Log.w("LOGOUT", "removeAllFcmTokens failed: HTTP ${resp.code()}")
                         }
-                        // Delete the device token locally so a fresh one is generated on next login
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    
+                    // 2. Sign out of Firebase so currentUser becomes null
+                    FirebaseAuth.getInstance().signOut()
+                    
+                    // 3. Delete token locally. This triggers onNewToken, but since we are signed out,
+                    // it will NOT register the new token to the server.
+                    try {
                         FirebaseMessaging.getInstance().deleteToken().await()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
-                    FirebaseAuth.getInstance().signOut()
                     
-                    // 2. Disconnect WebSocket
+                    // 4. Disconnect WebSocket
                     ChatWebSocketManager.disconnect()
 
                     // 3. Modern Google Sign-out using Credential Manager

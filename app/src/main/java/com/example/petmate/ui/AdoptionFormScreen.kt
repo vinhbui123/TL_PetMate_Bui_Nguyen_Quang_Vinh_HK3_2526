@@ -249,12 +249,19 @@ fun PetSummaryMiniCard(pet: Pet) {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    androidx.compose.foundation.Image(
-                        painter = painterResource(pet.imageRes),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.LightGray),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Pets,
+                            contentDescription = "Không có ảnh",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
