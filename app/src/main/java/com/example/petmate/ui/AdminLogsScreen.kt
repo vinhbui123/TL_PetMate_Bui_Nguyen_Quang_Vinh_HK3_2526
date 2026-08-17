@@ -112,8 +112,10 @@ fun LogItem(log: SystemLog) {
                     Text(text = log.actionType ?: "Unknown", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text(
                         text = try {
-                            val parsedDate = LocalDateTime.parse(log.createdAt ?: "")
-                            parsedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", java.util.Locale.US)
+                            val formatter = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.US)
+                            val date = parser.parse(log.createdAt ?: "")
+                            if (date != null) formatter.format(date) else (log.createdAt ?: "")
                         } catch (e: Exception) { log.createdAt ?: "" },
                         fontSize = 12.sp, color = Color.Gray
                     )
