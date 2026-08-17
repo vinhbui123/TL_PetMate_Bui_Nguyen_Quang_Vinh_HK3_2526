@@ -173,25 +173,36 @@ public class AdminService {
         long approvedAdoptions = adoptionRepository.countByStatus(AdoptionStatus.APPROVED);
 
         // Generate Adoption Trend (Last 6 months)
-        java.util.List<com.petmate.server.dto.ChartPointDto> adoptionTrend = new java.util.ArrayList<>();
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        List<ChartPointDto> adoptionTrend = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
         for (int i = 5; i >= 0; i--) {
-            java.time.LocalDateTime startOfMonth = now.minusMonths(i).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-            java.time.LocalDateTime endOfMonth = startOfMonth.plusMonths(1).minusSeconds(1);
+            LocalDateTime startOfMonth = now.minusMonths(i).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime endOfMonth = startOfMonth.plusMonths(1).minusSeconds(1);
             long count = adoptionRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
             String label = startOfMonth.getMonthValue() + "/" + startOfMonth.getYear();
-            adoptionTrend.add(new com.petmate.server.dto.ChartPointDto(label, count));
+            adoptionTrend.add(new ChartPointDto(label, count));
         }
 
         // Generate Content Mix (Pets by Category)
-        java.util.List<com.petmate.server.dto.PieChartPointDto> contentMix = new java.util.ArrayList<>();
-        long dogsCount = petRepository.countByCategory("Chó");
-        long catsCount = petRepository.countByCategory("Mèo");
-        long othersCount = totalPets - dogsCount - catsCount;
+        List<PieChartPointDto> contentMix = new ArrayList<>();
+        long dogsCount = petRepository.countByCategory("DOGS");
+        long catsCount = petRepository.countByCategory("CATS");
+        long birdsCount = petRepository.countByCategory("BIRDS");
+        long fishCount = petRepository.countByCategory("FISH");
+        long rabbitCount = petRepository.countByCategory("RABBITS");
+        long poultryCount = petRepository.countByCategory("POULTRY");
+        long hamsterCount = petRepository.countByCategory("HAMSTERS");
+        
+        long othersCount = totalPets - dogsCount - catsCount - birdsCount - fishCount - rabbitCount - poultryCount - hamsterCount;
 
-        if (dogsCount > 0) contentMix.add(new com.petmate.server.dto.PieChartPointDto("Chó", dogsCount, "#FF9800")); // Orange
-        if (catsCount > 0) contentMix.add(new com.petmate.server.dto.PieChartPointDto("Mèo", catsCount, "#2196F3")); // Blue
-        if (othersCount > 0) contentMix.add(new com.petmate.server.dto.PieChartPointDto("Khác", othersCount, "#4CAF50")); // Green
+        if (dogsCount > 0) contentMix.add(new PieChartPointDto("Chó", dogsCount, "#FF9800")); // Orange
+        if (catsCount > 0) contentMix.add(new PieChartPointDto("Mèo", catsCount, "#2196F3")); // Blue
+        if (birdsCount > 0) contentMix.add(new PieChartPointDto("Chim cảnh", birdsCount, "#E91E63")); // Pink
+        if (fishCount > 0) contentMix.add(new PieChartPointDto("Cá cảnh", fishCount, "#00BCD4")); // Cyan
+        if (rabbitCount > 0) contentMix.add(new PieChartPointDto("Thỏ", rabbitCount, "#9C27B0")); // Purple
+        if (poultryCount > 0) contentMix.add(new PieChartPointDto("Gia cầm", poultryCount, "#795548")); // Brown
+        if (hamsterCount > 0) contentMix.add(new PieChartPointDto("Hamster", hamsterCount, "#FFC107")); // Amber
+        if (othersCount > 0) contentMix.add(new PieChartPointDto("Khác", othersCount, "#4CAF50")); // Green
 
         return SystemStatsDto.builder()
                 .totalUsers(totalUsers)
