@@ -9,6 +9,8 @@ import com.petmate.server.repository.AdoptionApplicationRepository;
 import com.petmate.server.repository.ReportRepository;
 import com.petmate.server.repository.SystemLogRepository;
 import com.petmate.server.dto.SystemStatsDto;
+import com.petmate.server.dto.ChartPointDto;
+import com.petmate.server.dto.PieChartPointDto;
 import com.petmate.server.entity.SystemLog;
 import com.petmate.server.enums.AdoptionStatus;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
