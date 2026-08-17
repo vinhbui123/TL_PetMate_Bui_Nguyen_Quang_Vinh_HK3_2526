@@ -39,4 +39,6 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
 
     @EntityGraph(attributePaths = {"user"})
     List<Pet> findByNameInIgnoreCase(List<String> names);
+    
+    long countByCategory(String category);
 }

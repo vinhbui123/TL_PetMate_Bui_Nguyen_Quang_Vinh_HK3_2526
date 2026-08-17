@@ -17,4 +17,5 @@ public interface AdoptionApplicationRepository extends JpaRepository<AdoptionApp
     List<AdoptionApplication> findByPet_Organization_Id(Long orgId);
     long countByStatus(AdoptionStatus status);
     long countByPet_Organization_IdAndStatus(Long orgId, AdoptionStatus status);
+    long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
 }

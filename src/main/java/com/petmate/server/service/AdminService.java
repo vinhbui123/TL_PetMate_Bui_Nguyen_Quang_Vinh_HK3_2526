@@ -167,12 +167,42 @@ public class AdminService {
         long totalPets = petRepository.count();
         long totalOrgs = orgRepository.count();
         long totalReports = reportRepository.count();
+        
+        long totalAdoptions = adoptionRepository.count();
+        long pendingAdoptions = adoptionRepository.countByStatus(AdoptionStatus.PENDING);
+        long approvedAdoptions = adoptionRepository.countByStatus(AdoptionStatus.APPROVED);
+
+        // Generate Adoption Trend (Last 6 months)
+        java.util.List<com.petmate.server.dto.ChartPointDto> adoptionTrend = new java.util.ArrayList<>();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        for (int i = 5; i >= 0; i--) {
+            java.time.LocalDateTime startOfMonth = now.minusMonths(i).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            java.time.LocalDateTime endOfMonth = startOfMonth.plusMonths(1).minusSeconds(1);
+            long count = adoptionRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
+            String label = startOfMonth.getMonthValue() + "/" + startOfMonth.getYear();
+            adoptionTrend.add(new com.petmate.server.dto.ChartPointDto(label, count));
+        }
+
+        // Generate Content Mix (Pets by Category)
+        java.util.List<com.petmate.server.dto.PieChartPointDto> contentMix = new java.util.ArrayList<>();
+        long dogsCount = petRepository.countByCategory("Chó");
+        long catsCount = petRepository.countByCategory("Mèo");
+        long othersCount = totalPets - dogsCount - catsCount;
+
+        if (dogsCount > 0) contentMix.add(new com.petmate.server.dto.PieChartPointDto("Chó", dogsCount, "#FF9800")); // Orange
+        if (catsCount > 0) contentMix.add(new com.petmate.server.dto.PieChartPointDto("Mèo", catsCount, "#2196F3")); // Blue
+        if (othersCount > 0) contentMix.add(new com.petmate.server.dto.PieChartPointDto("Khác", othersCount, "#4CAF50")); // Green
 
         return SystemStatsDto.builder()
                 .totalUsers(totalUsers)
                 .totalPets(totalPets)
                 .totalOrganizations(totalOrgs)
                 .totalReports(totalReports)
+                .totalAdoptions(totalAdoptions)
+                .pendingAdoptions(pendingAdoptions)
+                .approvedAdoptions(approvedAdoptions)
+                .adoptionTrend(adoptionTrend)
+                .contentMix(contentMix)
                 .build();
     }
 

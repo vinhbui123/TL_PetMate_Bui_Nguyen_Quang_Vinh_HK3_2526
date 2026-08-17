@@ -17,4 +17,6 @@ public class SystemStatsDto {
     private long pendingAdoptions;
     private long approvedAdoptions;
     private long totalReports;
+    private java.util.List<ChartPointDto> adoptionTrend;
+    private java.util.List<PieChartPointDto> contentMix;
 }
