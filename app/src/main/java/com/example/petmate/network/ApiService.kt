@@ -82,6 +82,9 @@ interface ApiService {
     @DELETE("pets/{id}")
     suspend fun deletePet(@Path("id") id: Int)
 
+    @POST("pets/{id}/mark-sold")
+    suspend fun markPetAsSold(@Path("id") id: Int, @Query("buyerId") buyerId: Long): Response<Unit>
+
     @Multipart
     @POST("pets/{id}/image")
     suspend fun uploadPetImage(@Path("id") id: Int, @Part image: MultipartBody.Part): Pet
@@ -155,6 +158,9 @@ interface ApiService {
 
     @GET("chat/unread-count")
     suspend fun getTotalUnreadCount(@Query("userId") userId: Long): Int
+
+    @GET("chat/pet/{petId}/buyers")
+    suspend fun getBuyersForPet(@Path("petId") petId: Int): List<User>
 
     @POST("chatbot/ask")
     suspend fun askChatbot(@Body request: ChatbotRequest): ChatbotResponse

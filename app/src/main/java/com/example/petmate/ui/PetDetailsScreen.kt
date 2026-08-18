@@ -1,7 +1,7 @@
 package com.example.petmate.ui
 
 import android.content.Intent
-import android.widget.Toast
+import Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,6 +36,13 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import com.example.petmate.R
 import com.example.petmate.model.Pet
+import com.example.petmate.model.User
+import com.example.petmate.model.RatingRequest
+import com.example.petmate.model.SellerRatingSummary
+import com.example.petmate.model.OrganizationProfileDto
+import com.example.petmate.ui.components.RatingDialog
+import com.example.petmate.ui.components.ReportDialog
+import com.example.petmate.ui.components.SellerInfoCard
 import com.example.petmate.network.NetworkClient.apiService
 import com.example.petmate.ui.theme.*
 import com.example.petmate.util.LocationHelper
@@ -50,8 +57,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 fun PetDetailsScreen(
     initialPet: Pet,
     onBackClick: () -> Unit,
-    onViewSellerProfile: (com.example.petmate.model.User, Boolean) -> Unit = { _, _ -> },
-    onChatClick: (com.example.petmate.model.User) -> Unit = {},
+    onViewSellerProfile: (User, Boolean) -> Unit = { _, _ -> },
+    onChatClick: (User) -> Unit = {},
     onAdoptClick: () -> Unit = {},
     onEditClick: (Pet) -> Unit = {},
     onPetClick: (Pet) -> Unit = {},
@@ -65,6 +72,8 @@ fun PetDetailsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPetReportDialog by remember { mutableStateOf(false) }
     var showCancelAdoptionDialog by remember { mutableStateOf(false) }
+    var showSelectBuyerDialog by remember { mutableStateOf(false) }
+    var potentialBuyers by remember { mutableStateOf<List<User>>(emptyList()) }
     var showStatusDialog by remember { mutableStateOf(false) }
     var currentPetStatus by remember(initialPet.id) { mutableStateOf(initialPet.status ?: "AVAILABLE") }
     
@@ -76,11 +85,11 @@ fun PetDetailsScreen(
     var isLiked by remember(initialPet.id) { mutableStateOf(false) }
     var likeCount by remember(initialPet.id) { mutableIntStateOf(initialPet.likeCount) }
 
-    var ratingSummary by remember(initialPet.id) { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
+    var ratingSummary by remember(initialPet.id) { mutableStateOf<SellerRatingSummary?>(null) }
     var showRatingDialog by remember { mutableStateOf(false) }
     var canRate by remember(initialPet.id) { mutableStateOf(false) }
     
-    var sellerOrgProfile by remember(initialPet.id) { mutableStateOf<com.example.petmate.model.OrganizationProfileDto?>(null) }
+    var sellerOrgProfile by remember(initialPet.id) { mutableStateOf<OrganizationProfileDto?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -95,7 +104,7 @@ fun PetDetailsScreen(
 
     if (showRatingDialog && pet.user?.id != null) {
         val currentUserRating = ratingSummary?.currentUserRating
-        com.example.petmate.ui.components.RatingDialog(
+        RatingDialog(
             initialScore = currentUserRating?.score ?: 5.0,
             initialComment = currentUserRating?.comment ?: "",
             onDismissRequest = { showRatingDialog = false },
@@ -103,7 +112,7 @@ fun PetDetailsScreen(
                 showRatingDialog = false
                 coroutineScope.launch {
                     try {
-                        val request = com.example.petmate.model.RatingRequest(score, pet.id.toLong(), comment)
+                        val request = RatingRequest(score, pet.id.toLong(), comment)
                         apiService.rateUser(pet.user!!.id!!, request)
                         Toast.makeText(context, "Đánh giá thành công!", Toast.LENGTH_SHORT).show()
                         ratingSummary = apiService.getSellerRatingSummary(pet.user!!.id!!)
@@ -249,11 +258,11 @@ fun PetDetailsScreen(
     }
 
     if (showPetReportDialog) {
-        com.example.petmate.ui.components.ReportDialog(
+        ReportDialog(
             reportedPetId = pet.id.toLong(),
             onDismissRequest = { showPetReportDialog = false },
             onSuccess = {
-                Toast.makeText(context, "Cảm ơn bạn đã báo cáo bài đăng. Chúng tôi sẽ xem xét sớm nhất!", android.widget.Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Cảm ơn bạn đã báo cáo bài đăng. Chúng tôi sẽ xem xét sớm nhất!", Toast.LENGTH_LONG).show()
             }
         )
     }
@@ -322,13 +331,68 @@ fun PetDetailsScreen(
         )
     }
 
+    if (showSelectBuyerDialog) {
+        AlertDialog(
+            onDismissRequest = { showSelectBuyerDialog = false },
+            title = {
+                Text(
+                    text = "Chọn người mua",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = DeepBrown
+                )
+            },
+            text = {
+                if (potentialBuyers.isEmpty()) {
+                    Text("Chưa có ai nhắn tin trao đổi về thú cưng này.")
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Vui lòng chọn người dùng mà bạn đã bán thú cưng này:", style = MaterialTheme.typography.bodyMedium)
+                        potentialBuyers.forEach { buyer ->
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            apiService.markPetAsSold(pet.id, buyer.id ?: 0)
+                                            currentPetStatus = "SOLD"
+                                            showSelectBuyerDialog = false
+                                            Toast.makeText(context, "Đã cập nhật trạng thái bán thành công!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Lỗi: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFF5F5F5),
+                                    contentColor = DeepBrown
+                                )
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(buyer.fullName ?: "Người dùng vô danh", fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSelectBuyerDialog = false }) {
+                    Text("Đóng", color = TextGray)
+                }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = Color(0xFFF5F5F5),
         bottomBar = {
             val petUser = pet.user
             val isOwner = currentUserId != null && petUser != null && currentUserId == petUser.id
             if (!isOwner) {
-                val isFree = pet.price.isNullOrBlank() || pet.price == "Miễn phí"
+                val isFree = pet.listingType == "ADOPTION"
                 BottomActionBar(
                     isFree = isFree,
                     adoptionStatus = adoptionStatus,
@@ -336,7 +400,7 @@ fun PetDetailsScreen(
                     onCancelAdoptionClick = { showCancelAdoptionDialog = true },
                     onChatClick = {
                         if (petUser != null) {
-                            val user = com.example.petmate.model.User(
+                            val user = User(
                                 id = petUser.id ?: 0L,
                                 fullName = petUser.fullName ?: "",
                                 email = petUser.email ?: "",
@@ -352,6 +416,44 @@ fun PetDetailsScreen(
                         }
                     }
                 )
+            } else if (pet.listingType == "SALE" && currentPetStatus == "AVAILABLE") {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    try {
+                                        potentialBuyers = apiService.getBuyersForPet(pet.id)
+                                        showSelectBuyerDialog = true
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Lỗi khi tải danh sách: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = PrimaryPeach,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = "Đã bán", modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Đánh dấu Đã bán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
+                }
             }
         }
     ) { innerPadding ->
@@ -475,12 +577,12 @@ fun PetDetailsScreen(
                                     onClick = {
                                         coroutineScope.launch {
                                             try {
-                                                com.example.petmate.network.NetworkClient.apiService.unlockRedListPet(pet.id)
-                                                android.widget.Toast.makeText(context, "Mở khóa thành công!", android.widget.Toast.LENGTH_SHORT).show()
+                                                apiService.unlockRedListPet(pet.id)
+                                                Toast.makeText(context, "Mở khóa thành công!", Toast.LENGTH_SHORT).show()
                                                 currentPetStatus = "AVAILABLE"
                                                 pet = pet.copy(status = "AVAILABLE", redListNote = null)
                                             } catch (e: Exception) {
-                                                android.widget.Toast.makeText(context, "Lỗi khi mở khóa!", android.widget.Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Lỗi khi mở khóa!", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     },
@@ -664,14 +766,14 @@ fun PetDetailsScreen(
             } else {
                 baseSeller
             }
-            com.example.petmate.ui.components.SellerInfoCard(
+            SellerInfoCard(
                 seller = seller,
                 ratingSummary = ratingSummary,
                 currentUserId = currentUserId,
                 canRate = canRate,
                 onViewProfile = {
                     seller?.let { s ->
-                        val user = com.example.petmate.model.User(
+                        val user = User(
                             id = s.id ?: 0L,
                             fullName = s.fullName ?: "",
                             email = s.email ?: "",

@@ -40,6 +40,7 @@ data class Pet(
     val price: String? = null,
     val status: String? = null,
     val category: String? = null,
+    val listingType: String? = null,
     val user: PetUser? = null,
     val likeCount: Int = 0,
     val createdAt: String? = null,
