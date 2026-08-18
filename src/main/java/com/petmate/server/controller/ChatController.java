@@ -2,6 +2,7 @@ package com.petmate.server.controller;
 
 import com.petmate.server.dto.ChatRoomResponse;
 import com.petmate.server.dto.MessageResponse;
+import com.petmate.server.entity.User;
 import com.petmate.server.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -50,5 +51,10 @@ public class ChatController {
     @GetMapping("/unread-count")
     public ResponseEntity<Integer> getTotalUnreadCount(@RequestParam("userId") Long userId) {
         return ResponseEntity.ok(chatService.getTotalUnreadCount(userId));
+    }
+
+    @GetMapping("/pet/{petId}/buyers")
+    public ResponseEntity<List<User>> getBuyersForPet(@PathVariable Long petId) {
+        return ResponseEntity.ok(chatService.getBuyersForPet(petId));
     }
 }

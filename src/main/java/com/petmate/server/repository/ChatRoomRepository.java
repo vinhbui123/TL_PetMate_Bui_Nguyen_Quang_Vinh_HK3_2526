@@ -17,4 +17,6 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
     @Query("SELECT r FROM ChatRoom r WHERE (r.buyer.id = :buyerId AND r.seller.id = :sellerId AND r.pet.id = :petId) OR (r.buyer.id = :sellerId AND r.seller.id = :buyerId AND r.pet.id = :petId)")
     Optional<ChatRoom> findExistingRoom(@Param("buyerId") Long buyerId, @Param("sellerId") Long sellerId, @Param("petId") Long petId);
+    
+    List<ChatRoom> findByPetId(Long petId);
 }

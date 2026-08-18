@@ -53,9 +53,18 @@ public class ChatService {
     }
 
     public List<ChatRoomResponse> getUserRooms(Long userId) {
-        List<ChatRoom> rooms = chatRoomRepository.findByUserIdOrderByUpdatedAtDesc(userId);
-        return rooms.stream()
+        return chatRoomRepository.findByUserIdOrderByUpdatedAtDesc(userId)
+                .stream()
                 .map(room -> mapToChatRoomResponse(room, userId))
+                .collect(Collectors.toList());
+    }
+
+    public List<User> getBuyersForPet(Long petId) {
+        return chatRoomRepository.findByPetId(petId)
+                .stream()
+                .map(ChatRoom::getBuyer)
+                // Filter distinct buyers just in case
+                .distinct()
                 .collect(Collectors.toList());
     }
 

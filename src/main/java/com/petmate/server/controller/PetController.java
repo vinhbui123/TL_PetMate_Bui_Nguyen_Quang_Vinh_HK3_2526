@@ -124,6 +124,17 @@ public class PetController {
         }
     }
 
+    @PostMapping("/{id}/mark-sold")
+    public ResponseEntity<Void> markSold(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @RequestParam Long buyerId) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            petService.markSold(jwt, id, buyerId);
+            return ResponseEntity.ok().build();
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<Pet> updatePet(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @jakarta.validation.Valid @RequestBody PetRequestDto dto) {
         if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

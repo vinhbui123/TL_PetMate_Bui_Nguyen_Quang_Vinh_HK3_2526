@@ -15,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import com.petmate.server.entity.OrganizationProfile;
 import com.petmate.server.repository.OrganizationProfileRepository;
 import com.petmate.server.repository.OrganizationMemberRepository;
+import com.petmate.server.entity.AdoptionApplication;
+import com.petmate.server.enums.AdoptionStatus;
+import com.petmate.server.repository.AdoptionApplicationRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,7 @@ public class PetService {
     private final OrganizationProfileRepository orgRepository;
     private final OrganizationMemberRepository memberRepository;
     private final RedListService redListService;
+    private final AdoptionApplicationRepository adoptionApplicationRepository;
 
     public List<Pet> getAllPets(String category) {
         if (category != null && !category.isEmpty()) {
@@ -192,6 +196,37 @@ public class PetService {
                 });
 
         return pet;
+    }
+
+    public void markSold(Jwt jwt, Long petId, Long buyerId) {
+        User currentUser = userService.getCurrentUserOrThrow(jwt);
+
+        Pet pet = petRepository.findById(petId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thú cưng"));
+
+        if (!pet.getUser().getId().equals(currentUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ thú cưng mới có thể thực hiện thao tác này");
+        }
+        
+        if (pet.getStatus() == AdStatus.SOLD) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thú cưng này đã được bán");
+        }
+
+        User buyer = userRepository.findById(buyerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người mua"));
+
+        pet.setStatus(AdStatus.SOLD);
+        petRepository.save(pet);
+
+        // Tạo virtual AdoptionApplication để tái sử dụng logic Đánh giá (Rating)
+        AdoptionApplication app = AdoptionApplication.builder()
+                .pet(pet)
+                .applicant(buyer)
+                .status(AdoptionStatus.APPROVED)
+                .message("Giao dịch mua bán thành công")
+                .experience("")
+                .build();
+        adoptionApplicationRepository.save(app);
     }
 
     public Pet rejectRedListPet(Jwt jwt, Long id) {
