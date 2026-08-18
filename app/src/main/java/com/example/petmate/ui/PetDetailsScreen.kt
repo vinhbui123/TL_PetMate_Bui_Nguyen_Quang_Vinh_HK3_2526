@@ -1,7 +1,7 @@
 package com.example.petmate.ui
 
 import android.content.Intent
-import Toast
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -416,7 +416,7 @@ fun PetDetailsScreen(
                         }
                     }
                 )
-            } else if (pet.listingType == "SALE" && currentPetStatus == "AVAILABLE") {
+            } else if (currentPetStatus == "AVAILABLE") {
                 Surface(
                     color = Color.White,
                     shadowElevation = 8.dp,
@@ -448,9 +448,9 @@ fun PetDetailsScreen(
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Đã bán", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = "Đã giao dịch", modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đánh dấu Đã bán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(if (pet.listingType == "ADOPTION") "Đánh dấu Đã cho nhận nuôi" else "Đánh dấu Đã giao dịch", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 }
@@ -960,10 +960,16 @@ fun PetDetailsScreen(
                                 isUpdatingStatus = true
                                 coroutineScope.launch {
                                     try {
-                                        apiService.updatePetStatus(pet.id, selectedStatus)
-                                        currentPetStatus = selectedStatus
-                                        Toast.makeText(context, "Cập nhật thành công!", Toast.LENGTH_SHORT).show()
-                                        showStatusDialog = false
+                                        if (selectedStatus == "SOLD") {
+                                            showStatusDialog = false
+                                            potentialBuyers = apiService.getBuyersForPet(pet.id)
+                                            showSelectBuyerDialog = true
+                                        } else {
+                                            apiService.updatePetStatus(pet.id, selectedStatus)
+                                            currentPetStatus = selectedStatus
+                                            Toast.makeText(context, "Cập nhật thành công!", Toast.LENGTH_SHORT).show()
+                                            showStatusDialog = false
+                                        }
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Lỗi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                                     } finally {
