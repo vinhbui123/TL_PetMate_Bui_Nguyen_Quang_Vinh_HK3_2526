@@ -88,4 +88,14 @@ public class AdoptionController {
             return ResponseEntity.status(e.getStatusCode()).build();
         }
     }
+
+    @GetMapping("/check-approved/{petId}")
+    public ResponseEntity<Boolean> checkApprovedAdoption(@AuthenticationPrincipal Jwt jwt, @PathVariable Long petId) {
+        if (jwt == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            return ResponseEntity.ok(adoptionService.hasApprovedAdoption(jwt, petId));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
+        }
+    }
 }

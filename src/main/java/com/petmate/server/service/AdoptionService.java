@@ -159,4 +159,9 @@ public class AdoptionService {
 
         adoptionRepo.delete(app);
     }
+    
+    public boolean hasApprovedAdoption(Jwt jwt, Long petId) {
+        User user = getCurrentUserOrThrow(jwt);
+        return adoptionRepo.existsByApplicantIdAndPetIdAndStatus(user.getId(), petId, AdoptionStatus.APPROVED);
+    }
 }
