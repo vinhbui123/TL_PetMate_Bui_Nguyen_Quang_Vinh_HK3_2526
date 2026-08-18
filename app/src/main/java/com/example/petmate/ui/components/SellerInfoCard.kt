@@ -34,6 +34,7 @@ fun SellerInfoCard(
     seller: PetUser?,
     ratingSummary: SellerRatingSummary?,
     currentUserId: Long?,
+    canRate: Boolean = false,
     onViewProfile: () -> Unit,
     onWriteReview: () -> Unit,
     modifier: Modifier = Modifier
@@ -148,7 +149,7 @@ fun SellerInfoCard(
         }
         
         // Rating Action Section
-        if (currentUserId != null && seller != null && currentUserId != seller.id) {
+        if (currentUserId != null && seller != null && currentUserId != seller.id && canRate) {
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
             Spacer(modifier = Modifier.height(12.dp))

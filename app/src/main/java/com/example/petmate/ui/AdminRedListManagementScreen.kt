@@ -1,14 +1,15 @@
 package com.example.petmate.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -22,7 +23,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,7 +31,6 @@ import com.example.petmate.model.Pet
 import com.example.petmate.model.RedListRequest
 import com.example.petmate.model.RedListSpecies
 import com.example.petmate.network.NetworkClient
-import com.example.petmate.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,31 +46,36 @@ fun AdminRedListManagementScreen(onBack: () -> Unit, onPetClick: (Pet) -> Unit =
                     Text(
                         "Quản lý Danh sách đỏ", 
                         fontWeight = FontWeight.Bold,
-                        color = DeepBrown
+                        fontSize = 18.sp,
+                        color = Color(0xFF0F172A)
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại", tint = DeepBrown)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack, 
+                            contentDescription = "Quay lại", 
+                            tint = Color(0xFF0F172A)
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundBeige)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        containerColor = BackgroundBeige
+        containerColor = Color(0xFFF8FAFC)
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             TabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = BackgroundBeige,
-                contentColor = AccentOrange,
+                containerColor = Color.White,
+                contentColor = Color(0xFF6366F1),
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = AccentOrange
+                        color = Color(0xFF6366F1)
                     )
                 },
-                divider = {}
+                divider = { HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -80,8 +84,9 @@ fun AdminRedListManagementScreen(onBack: () -> Unit, onPetClick: (Pet) -> Unit =
                         text = { 
                             Text(
                                 title, 
-                                fontWeight = if (selectedTab == index) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (selectedTab == index) DeepBrown else TextGray
+                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 14.sp,
+                                color = if (selectedTab == index) Color(0xFF6366F1) else Color(0xFF64748B)
                             ) 
                         }
                     )
@@ -111,11 +116,12 @@ fun RedListSpeciesTab() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = PrimaryPeach)
+            isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color(0xFF6366F1))
             speciesList.isEmpty() -> Text(
                 "Chưa có loài nào trong Danh sách đỏ.",
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.Gray
+                color = Color(0xFF94A3B8),
+                fontSize = 14.sp
             )
             else -> LazyColumn(
                 contentPadding = PaddingValues(16.dp),
@@ -142,9 +148,10 @@ fun RedListSpeciesTab() {
 
         FloatingActionButton(
             onClick = { showAddDialog = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp),
-            containerColor = AccentOrange,
-            contentColor = Color.White
+            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
+            containerColor = Color(0xFF6366F1),
+            contentColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "Thêm")
         }
@@ -174,8 +181,9 @@ fun RedListSpeciesCard(species: RedListSpecies, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardWhite),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -187,38 +195,39 @@ fun RedListSpeciesCard(species: RedListSpecies, onDelete: () -> Unit) {
                     Text(
                         species.breedKeyword, 
                         fontWeight = FontWeight.Bold, 
-                        fontSize = 18.sp,
-                        color = DeepBrown
+                        fontSize = 17.sp,
+                        color = Color(0xFF0F172A)
                     )
-                    Text("Danh mục: ${species.category ?: "Tất cả"}", fontSize = 14.sp, color = TextGray)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Danh mục: ${species.category ?: "Tất cả"}", fontSize = 13.sp, color = Color(0xFF64748B))
                     
-                    val levelColor = if (species.protectionLevel == "PROHIBITED") ErrorRed else AccentOrange
+                    val levelColor = if (species.protectionLevel == "PROHIBITED") Color(0xFFEF4444) else Color(0xFFF59E0B)
                     Surface(
                         color = levelColor.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.padding(top = 4.dp)
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.padding(top = 6.dp)
                     ) {
                         Text(
                             formatProtectionLevel(species.protectionLevel),
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = levelColor,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = ErrorRed)
+                    Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color(0xFFEF4444))
                 }
             }
             if (!species.synonyms.isNullOrEmpty()) {
                 Text(
                     buildAnnotatedString {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) { append("Đồng nghĩa: ") }
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF334155))) { append("Đồng nghĩa: ") }
                         append(species.synonyms)
                     },
                     fontSize = 13.sp, 
-                    color = TextGray, 
+                    color = Color(0xFF64748B), 
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -226,7 +235,7 @@ fun RedListSpeciesCard(species: RedListSpecies, onDelete: () -> Unit) {
                 Text(
                     species.description, 
                     fontSize = 13.sp, 
-                    color = TextGray, 
+                    color = Color(0xFF64748B), 
                     modifier = Modifier.padding(top = 4.dp),
                     lineHeight = 18.sp
                 )
@@ -235,6 +244,7 @@ fun RedListSpeciesCard(species: RedListSpecies, onDelete: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Unit) {
     var breedKeyword by remember { mutableStateOf("") }
@@ -249,8 +259,9 @@ fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Un
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Thêm loài vào Danh sách đỏ", color = DeepBrown, fontWeight = FontWeight.Bold) },
-        containerColor = CardWhite,
+        title = { Text("Thêm loài vào Danh sách đỏ", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp),
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -260,23 +271,23 @@ fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Un
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentOrange,
-                        unfocusedBorderColor = InputBorder,
-                        focusedLabelColor = AccentOrange
+                        focusedBorderColor = Color(0xFF6366F1),
+                        unfocusedBorderColor = Color(0xFFE2E8F0),
+                        focusedLabelColor = Color(0xFF6366F1)
                     )
                 )
 
                 Column {
-                    Text("Danh mục", fontSize = 14.sp, color = DeepBrown, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                    Text("Danh mục", fontSize = 13.sp, color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         categories.forEach { (code, label) ->
                             FilterChip(
                                 selected = category == code, 
                                 onClick = { category = code }, 
-                                label = { Text(label) },
+                                label = { Text(label, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = AccentOrange.copy(alpha = 0.2f),
-                                    selectedLabelColor = AccentOrange
+                                    selectedContainerColor = Color(0xFFEEF2FF),
+                                    selectedLabelColor = Color(0xFF6366F1)
                                 )
                             )
                         }
@@ -290,23 +301,23 @@ fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Un
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentOrange,
-                        unfocusedBorderColor = InputBorder,
-                        focusedLabelColor = AccentOrange
+                        focusedBorderColor = Color(0xFF6366F1),
+                        unfocusedBorderColor = Color(0xFFE2E8F0),
+                        focusedLabelColor = Color(0xFF6366F1)
                     )
                 )
 
                 Column {
-                    Text("Mức độ bảo vệ", fontSize = 14.sp, color = DeepBrown, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                    Text("Mức độ bảo vệ", fontSize = 13.sp, color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         levels.forEach { (code, label) ->
                             FilterChip(
                                 selected = protectionLevel == code, 
                                 onClick = { protectionLevel = code }, 
-                                label = { Text(label) },
+                                label = { Text(label, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = AccentOrange.copy(alpha = 0.2f),
-                                    selectedLabelColor = AccentOrange
+                                    selectedContainerColor = Color(0xFFEEF2FF),
+                                    selectedLabelColor = Color(0xFF6366F1)
                                 )
                             )
                         }
@@ -321,9 +332,9 @@ fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Un
                     minLines = 2,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentOrange,
-                        unfocusedBorderColor = InputBorder,
-                        focusedLabelColor = AccentOrange
+                        focusedBorderColor = Color(0xFF6366F1),
+                        unfocusedBorderColor = Color(0xFFE2E8F0),
+                        focusedLabelColor = Color(0xFF6366F1)
                     )
                 )
             }
@@ -340,12 +351,12 @@ fun AddRedListSpeciesDialog(onDismiss: () -> Unit, onAdd: (RedListRequest) -> Un
                     ))
                 },
                 enabled = breedKeyword.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentOrange),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
                 shape = RoundedCornerShape(12.dp)
             ) { Text("Thêm", fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Hủy", color = TextGray) }
+            TextButton(onClick = onDismiss) { Text("Hủy", color = Color(0xFF64748B)) }
         }
     )
 }
@@ -375,11 +386,16 @@ fun RedListReviewTab(onPetClick: (Pet) -> Unit = {}) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = PrimaryPeach)
-            pendingPets.isEmpty() -> Text("Không có tin đăng nào cần xem xét Danh sách đỏ.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
+            isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color(0xFF6366F1))
+            pendingPets.isEmpty() -> Text(
+                "Không có tin đăng nào cần xem xét Danh sách đỏ.", 
+                modifier = Modifier.align(Alignment.Center), 
+                color = Color(0xFF94A3B8),
+                fontSize = 14.sp
+            )
             else -> LazyColumn(
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(pendingPets) { pet ->
                     RedListPendingPetCard(
@@ -419,8 +435,9 @@ fun RedListPendingPetCard(pet: Pet, onApprove: () -> Unit, onReject: () -> Unit,
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = SoftPeach),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -428,31 +445,31 @@ fun RedListPendingPetCard(pet: Pet, onApprove: () -> Unit, onReject: () -> Unit,
                     AsyncImage(
                         model = pet.imageUrl,
                         contentDescription = null,
-                        modifier = Modifier.size(80.dp).clip(RoundedCornerShape(12.dp)),
+                        modifier = Modifier.size(76.dp).clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(12.dp)).background(IconGray.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Pets, contentDescription = "Không có ảnh", tint = TextGray, modifier = Modifier.size(40.dp))
+                    Box(modifier = Modifier.size(76.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFF1F5F9)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Pets, contentDescription = "Không có ảnh", tint = Color(0xFF94A3B8), modifier = Modifier.size(36.dp))
                     }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     Text(
                         pet.name ?: "Chưa có tên", 
                         fontWeight = FontWeight.Bold, 
-                        fontSize = 18.sp,
-                        color = DeepBrown
+                        fontSize = 17.sp,
+                        color = Color(0xFF0F172A)
                     )
-                    Text("Giống: ${pet.breed}", fontSize = 14.sp, color = TextGray)
+                    Text("Giống: ${pet.breed}", fontSize = 13.sp, color = Color(0xFF64748B))
                     
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             "Cần xem xét Danh sách đỏ",
-                            fontSize = 13.sp,
-                            color = ErrorRed,
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -465,44 +482,45 @@ fun RedListPendingPetCard(pet: Pet, onApprove: () -> Unit, onReject: () -> Unit,
                     .replace("PARTIAL", "MỘT PHẦN")
                 
                 Surface(
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = Color(0xFFFEF2F2),
                     shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFEE2E2)),
                     modifier = Modifier.padding(top = 12.dp).fillMaxWidth()
                 ) {
                     Text(
                         formattedNote,
-                        fontSize = 13.sp,
-                        color = Color(0xFF8D4B38), // A darker brown/red
-                        modifier = Modifier.padding(12.dp),
-                        lineHeight = 18.sp
+                        fontSize = 12.sp,
+                        color = Color(0xFF991B1B),
+                        modifier = Modifier.padding(10.dp),
+                        lineHeight = 16.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = onApprove,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                    modifier = Modifier.weight(1f).height(42.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(vertical = 12.dp)
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Duyệt", fontWeight = FontWeight.Bold) 
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Duyệt", fontWeight = FontWeight.Bold, fontSize = 13.sp) 
                 }
                 OutlinedButton(
                     onClick = onReject,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, ErrorRed),
+                    modifier = Modifier.weight(1f).height(42.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                    border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(vertical = 12.dp)
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Từ chối", fontWeight = FontWeight.Bold) 
+                    Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Từ chối", fontWeight = FontWeight.Bold, fontSize = 13.sp) 
                 }
             }
         }

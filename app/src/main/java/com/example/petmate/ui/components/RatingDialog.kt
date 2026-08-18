@@ -17,12 +17,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.petmate.ui.theme.*
 
+import androidx.compose.material.icons.filled.DeleteOutline
+
 @Composable
 fun RatingDialog(
     initialScore: Double = 5.0,
     initialComment: String = "",
     onDismissRequest: () -> Unit,
-    onSubmit: (Double, String) -> Unit
+    onSubmit: (Double, String) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     var score by remember { mutableStateOf(initialScore.toInt()) }
     var comment by remember { mutableStateOf(initialComment) }
@@ -84,7 +87,26 @@ fun RatingDialog(
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextGray)
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                if (onDelete != null) {
+                    TextButton(
+                        onClick = onDelete,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = "Xóa đánh giá",
+                            tint = Color(0xFFE53935),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "Xóa đánh giá này",
+                            color = Color(0xFFE53935),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

@@ -165,6 +165,9 @@ interface ApiService {
     @GET("adoptions/my-applications")
     suspend fun getMyAdoptionApplications(): List<AdoptionResponse>
 
+    @GET("adoptions/check-approved/{petId}")
+    suspend fun checkApprovedAdoption(@Path("petId") petId: Long): Boolean
+
     @GET("adoptions/received")
     suspend fun getReceivedAdoptionApplications(): List<AdoptionResponse>
 

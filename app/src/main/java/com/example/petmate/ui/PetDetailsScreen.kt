@@ -78,6 +78,7 @@ fun PetDetailsScreen(
 
     var ratingSummary by remember(initialPet.id) { mutableStateOf<com.example.petmate.model.SellerRatingSummary?>(null) }
     var showRatingDialog by remember { mutableStateOf(false) }
+    var canRate by remember(initialPet.id) { mutableStateOf(false) }
     
     var sellerOrgProfile by remember(initialPet.id) { mutableStateOf<com.example.petmate.model.OrganizationProfileDto?>(null) }
 
@@ -93,9 +94,10 @@ fun PetDetailsScreen(
     }
 
     if (showRatingDialog && pet.user?.id != null) {
+        val currentUserRating = ratingSummary?.currentUserRating
         com.example.petmate.ui.components.RatingDialog(
-            initialScore = ratingSummary?.currentUserRating?.score ?: 5.0,
-            initialComment = ratingSummary?.currentUserRating?.comment ?: "",
+            initialScore = currentUserRating?.score ?: 5.0,
+            initialComment = currentUserRating?.comment ?: "",
             onDismissRequest = { showRatingDialog = false },
             onSubmit = { score, comment ->
                 showRatingDialog = false
@@ -121,7 +123,21 @@ fun PetDetailsScreen(
                         Toast.makeText(context, "Lỗi mạng", Toast.LENGTH_SHORT).show()
                     }
                 }
-            }
+            },
+            onDelete = if (currentUserRating != null) {
+                {
+                    showRatingDialog = false
+                    coroutineScope.launch {
+                        try {
+                            apiService.deleteRating(currentUserRating.id)
+                            Toast.makeText(context, "Đã xóa đánh giá!", Toast.LENGTH_SHORT).show()
+                            ratingSummary = apiService.getSellerRatingSummary(pet.user!!.id!!)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Lỗi khi xóa đánh giá", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } else null
         )
     }
 
@@ -148,7 +164,11 @@ fun PetDetailsScreen(
             try {
                 val saveStatus = apiService.getSaveStatus(pet.id.toLong())
                 isSaved = saveStatus.isSaved
+                
+                canRate = apiService.checkApprovedAdoption(pet.id.toLong())
             } catch (e: Exception) {
+                isSaved = false
+                canRate = false
                 e.printStackTrace()
             }
             try {
@@ -648,6 +668,7 @@ fun PetDetailsScreen(
                 seller = seller,
                 ratingSummary = ratingSummary,
                 currentUserId = currentUserId,
+                canRate = canRate,
                 onViewProfile = {
                     seller?.let { s ->
                         val user = com.example.petmate.model.User(

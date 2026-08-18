@@ -18,11 +18,13 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import com.example.petmate.model.SellerRatingSummary
+import com.example.petmate.model.RatingResponse
 import com.example.petmate.ui.components.ReportDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +62,8 @@ fun SellerProfileScreen(
     val isSelf = currentUserId != null && currentUserId == sellerId
     var pets by remember { mutableStateOf<List<Pet>>(emptyList()) }
     var ratingSummary by remember { mutableStateOf<SellerRatingSummary?>(null) }
+    var sellerReviews by remember { mutableStateOf<List<RatingResponse>>(emptyList()) }
+    var hasUserRated by remember { mutableStateOf(false) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -103,6 +107,10 @@ fun SellerProfileScreen(
             }
             try {
                 ratingSummary = NetworkClient.apiService.getSellerRatingSummary(sellerId)
+                sellerReviews = NetworkClient.apiService.getSellerReviews(sellerId)
+                if (currentUserId != null && !isSelf) {
+                    hasUserRated = NetworkClient.apiService.checkRatingStatus(sellerId)
+                }
             } catch (e: Exception) {
                 // Ignore
             }
@@ -421,7 +429,7 @@ fun SellerProfileScreen(
                 }
             } else {
                 // Review Tab
-                val reviews = ratingSummary?.recentReviews ?: emptyList()
+                val reviews = if (sellerReviews.isNotEmpty()) sellerReviews else (ratingSummary?.recentReviews ?: emptyList())
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = com.example.petmate.ui.theme.PrimaryPeach)
@@ -439,30 +447,63 @@ fun SellerProfileScreen(
                         items(reviews.size) { index ->
                             val review = reviews[index]
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFEEEEEE))
-                                    ) {
-                                        if (!review.raterAvatarUrl.isNullOrEmpty()) {
-                                            AsyncImage(
-                                                model = review.raterAvatarUrl,
-                                                contentDescription = null,
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        } else {
-                                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.align(Alignment.Center))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                        Box(
+                                            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFEEEEEE))
+                                        ) {
+                                            if (!review.raterAvatarUrl.isNullOrEmpty()) {
+                                                AsyncImage(
+                                                    model = review.raterAvatarUrl,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.align(Alignment.Center))
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(review.raterName ?: "Người dùng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                repeat(review.score.toInt()) {
+                                                    Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
+                                                }
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(com.example.petmate.util.TimeHelper.getRelativeTime(review.createdAt), fontSize = 12.sp, color = Color.Gray)
+                                            }
                                         }
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(review.raterName ?: "Người dùng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            repeat(review.score.toInt()) {
-                                                Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(12.dp))
+
+                                    if (currentUserId != null && review.raterId == currentUserId) {
+                                        IconButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    try {
+                                                        NetworkClient.apiService.deleteRating(review.id)
+                                                        android.widget.Toast.makeText(context, "Đã xóa đánh giá!", android.widget.Toast.LENGTH_SHORT).show()
+                                                        ratingSummary = NetworkClient.apiService.getSellerRatingSummary(sellerId)
+                                                        sellerReviews = NetworkClient.apiService.getSellerReviews(sellerId)
+                                                        if (currentUserId != null && !isSelf) {
+                                                            hasUserRated = NetworkClient.apiService.checkRatingStatus(sellerId)
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        android.widget.Toast.makeText(context, "Lỗi khi xóa đánh giá", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             }
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(com.example.petmate.util.TimeHelper.getRelativeTime(review.createdAt), fontSize = 12.sp, color = Color.Gray)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.DeleteOutline,
+                                                contentDescription = "Xóa đánh giá",
+                                                tint = Color(0xFFE53935),
+                                                modifier = Modifier.size(20.dp)
+                                            )
                                         }
                                     }
                                 }
