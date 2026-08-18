@@ -14,6 +14,8 @@ import org.springframework.web.context.request.WebRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.apache.catalina.connector.ClientAbortException;
 
 @Slf4j
 @RestControllerAdvice
@@ -52,6 +54,18 @@ public class GlobalExceptionHandler {
                         "error", ex.getStatusCode().toString(),
                         "message", ex.getReason() != null ? ex.getReason() : "Lỗi hệ thống"
                 ));
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsableException(AsyncRequestNotUsableException ex) {
+        log.warn("[GlobalExceptionHandler] Client disconnected abruptly: {}", ex.getMessage());
+        // Bỏ qua, không lưu vào DB để tránh rác log
+    }
+
+    @ExceptionHandler(ClientAbortException.class)
+    public void handleClientAbortException(ClientAbortException ex) {
+        log.warn("[GlobalExceptionHandler] Client aborted connection: {}", ex.getMessage());
+        // Bỏ qua, không lưu vào DB
     }
 
     @ExceptionHandler(Exception.class)

@@ -29,6 +29,10 @@ spring:
         jwt:
           issuer-uri: https://securetoken.google.com/test-mobile-app-8c2ce
 
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
   cloudinary:
     cloud-name: do3nktaxg
     api-key: 922563787399544
