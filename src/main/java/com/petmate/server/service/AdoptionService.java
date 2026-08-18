@@ -161,7 +161,7 @@ public class AdoptionService {
     }
     
     public boolean hasApprovedAdoption(Jwt jwt, Long petId) {
-        User user = getCurrentUserOrThrow(jwt);
+        User user = userService.getCurrentUserOrThrow(jwt);
         return adoptionRepo.existsByApplicantIdAndPetIdAndStatus(user.getId(), petId, AdoptionStatus.APPROVED);
     }
 }
