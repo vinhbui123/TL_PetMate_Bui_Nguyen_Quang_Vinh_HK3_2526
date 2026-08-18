@@ -184,6 +184,14 @@ public class PetService {
         pet.setStatus(status);
         petRepository.save(pet);
 
+        if (status == AdStatus.AVAILABLE) {
+            // Mở lại bài đăng -> Thu hồi xác nhận giao dịch cũ để người hủy kèo không thể đánh giá
+            List<AdoptionApplication> existingApps = adoptionApplicationRepository.findByPetId(id);
+            if (!existingApps.isEmpty()) {
+                adoptionApplicationRepository.deleteAll(existingApps);
+            }
+        }
+
         Optional.of(pet)
                 .map(Pet::getUser)
                 .filter(u -> isAdmin && !isOwner)
@@ -217,6 +225,12 @@ public class PetService {
 
         pet.setStatus(AdStatus.SOLD);
         petRepository.save(pet);
+
+        // Xóa các giao dịch/đơn cũ của bài đăng này (nếu đổi người mua)
+        List<AdoptionApplication> existingApps = adoptionApplicationRepository.findByPetId(petId);
+        if (!existingApps.isEmpty()) {
+            adoptionApplicationRepository.deleteAll(existingApps);
+        }
 
         // Tạo virtual AdoptionApplication để tái sử dụng logic Đánh giá (Rating)
         AdoptionApplication app = AdoptionApplication.builder()
