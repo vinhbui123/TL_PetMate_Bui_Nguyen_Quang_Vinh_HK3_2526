@@ -54,6 +54,7 @@ fun ChatbotScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -92,7 +93,8 @@ fun ChatbotScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .navigationBarsPadding(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(

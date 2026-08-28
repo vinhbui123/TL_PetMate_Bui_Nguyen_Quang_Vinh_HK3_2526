@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,14 +26,27 @@ import com.example.petmate.network.NetworkClient
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import androidx.compose.foundation.layout.size
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     roomId: Long,
     currentUserId: Long,
     otherUserName: String,
-    otherUserId: Long, // to send messages to
-    onBack: () -> Unit
+    otherUserId: Long,
+    otherUserAvatarUrl: String?,
+    petId: Long?,
+    petName: String?,
+    petImageUrl: String?,
+    petPrice: String?,
+    onBack: () -> Unit,
+    onNavigateToProfile: (Long) -> Unit,
+    onNavigateToPet: (Long) -> Unit
 ) {
     val context = LocalContext.current
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
@@ -69,7 +83,6 @@ fun ChatScreen(
     LaunchedEffect(Unit) {
         ChatWebSocketManager.incomingMessages.collect { newMessage ->
             if (newMessage.roomId == roomId) {
-                // Loại bỏ tin nhắn tạm (nếu có) và thêm tin nhắn thật từ server
                 messages = messages.filterNot { it.status == "SENDING" && it.content == newMessage.content } + newMessage
                 coroutineScope.launch {
                     kotlinx.coroutines.delay(50.milliseconds)
@@ -82,7 +95,30 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(otherUserName) },
+                title = { 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onNavigateToProfile(otherUserId) }.padding(end = 16.dp)
+                    ) {
+                        if (!otherUserAvatarUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = otherUserAvatarUrl,
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp).clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.size(36.dp).background(Color.Gray.copy(alpha=0.3f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(otherUserName)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -99,6 +135,61 @@ fun ChatScreen(
                 .padding(innerPadding)
                 .imePadding()
         ) {
+            // Pet Banner
+            if (petId != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToPet(petId) },
+                    color = Color.White,
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = petImageUrl ?: "https://via.placeholder.com/150",
+                            contentDescription = petName,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = petName ?: "Thú cưng",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = petPrice?.let { "$it đ" } ?: "Thỏa thuận",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFF7906D)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFF5F5F5),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+                        ) {
+                            Text(
+                                text = "Xem",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.DarkGray
+                            )
+                        }
+                    }
+                }
+            }
+
             // Messages List
             LazyColumn(
                 modifier = Modifier

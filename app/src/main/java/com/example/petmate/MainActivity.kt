@@ -30,6 +30,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import com.facebook.login.LoginManager
@@ -44,6 +45,8 @@ enum class AppScreen {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Cho phép Compose tự quản lý insets (bàn phím, status bar, nav bar)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             PetMateTheme {
                 PetMateApp()

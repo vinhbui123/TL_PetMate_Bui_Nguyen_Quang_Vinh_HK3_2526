@@ -334,6 +334,8 @@ fun PetDetailsScreen(
     if (showSelectBuyerDialog) {
         AlertDialog(
             onDismissRequest = { showSelectBuyerDialog = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(24.dp),
             title = {
                 Text(
                     text = "Chọn người mua",
@@ -343,35 +345,91 @@ fun PetDetailsScreen(
             },
             text = {
                 if (potentialBuyers.isEmpty()) {
-                    Text("Chưa có ai nhắn tin trao đổi về thú cưng này.")
+                    Text("Chưa có ai nhắn tin trao đổi về thú cưng này.", color = TextGray)
                 } else {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Vui lòng chọn người dùng mà bạn đã bán thú cưng này:", style = MaterialTheme.typography.bodyMedium)
-                        potentialBuyers.forEach { buyer ->
-                            Button(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            apiService.markPetAsSold(pet.id, buyer.id ?: 0)
-                                            currentPetStatus = "SOLD"
-                                            showSelectBuyerDialog = false
-                                            Toast.makeText(context, "Đã cập nhật trạng thái bán thành công!", Toast.LENGTH_SHORT).show()
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Lỗi: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Text(
+                            text = "Vui lòng chọn người dùng mà bạn đã giao dịch thú cưng này:", 
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextGray,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(potentialBuyers) { buyer ->
+                                Surface(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                apiService.markPetAsSold(pet.id, buyer.id ?: 0)
+                                                currentPetStatus = "SOLD"
+                                                showSelectBuyerDialog = false
+                                                Toast.makeText(context, "Đã cập nhật trạng thái bán thành công!", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Lỗi: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFF5F5F5),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (!buyer.avatarUrl.isNullOrEmpty()) {
+                                            AsyncImage(
+                                                model = buyer.avatarUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .background(PrimaryPeach.copy(alpha = 0.2f), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryPeach)
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = buyer.fullName ?: "Người dùng vô danh", 
+                                                fontWeight = FontWeight.Bold,
+                                                color = DeepBrown,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (!buyer.email.isNullOrEmpty()) {
+                                                Text(
+                                                    text = buyer.email, 
+                                                    fontSize = 12.sp,
+                                                    color = TextGray,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TextGray)
                                     }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF5F5F5),
-                                    contentColor = DeepBrown
-                                )
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(buyer.fullName ?: "Người dùng vô danh", fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
@@ -396,6 +454,7 @@ fun PetDetailsScreen(
                 BottomActionBar(
                     isFree = isFree,
                     adoptionStatus = adoptionStatus,
+                    petStatus = currentPetStatus,
                     onAdoptClick = onAdoptClick,
                     onCancelAdoptionClick = { showCancelAdoptionDialog = true },
                     onChatClick = {
@@ -1223,7 +1282,8 @@ fun SpecRow(icon: ImageVector, label: String, value: String?) {
 @Composable
 fun BottomActionBar(
     isFree: Boolean, 
-    adoptionStatus: String?, 
+    adoptionStatus: String?,
+    petStatus: String?,
     onAdoptClick: () -> Unit, 
     onCancelAdoptionClick: () -> Unit,
     onChatClick: () -> Unit
@@ -1238,105 +1298,136 @@ fun BottomActionBar(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isFree) {
-                // Chat Button
+            // Chat Icon (Shopee style)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable(onClick = onChatClick)
+                    .padding(end = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Chat, 
+                    contentDescription = "Chat", 
+                    tint = PrimaryPeach, 
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("Chat", fontSize = 11.sp, color = TextGray, fontWeight = FontWeight.Medium)
+            }
+            
+            // Divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(32.dp)
+                    .background(Color(0xFFEEEEEE))
+            )
+            
+            if (petStatus == "SOLD") {
                 Button(
-                    onClick = onChatClick,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
+                    onClick = { },
+                    enabled = false,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = PrimaryPeach
-                    ),
-                    border = BorderStroke(1.dp, PrimaryPeach)
+                        disabledContainerColor = Color(0xFFF5F5F5),
+                        disabledContentColor = TextGray
+                    )
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Trò chuyện", modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Trò chuyện", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("ĐÃ GIAO DỊCH", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
-                
+            } else if (petStatus == "REJECTED" || petStatus == "HIDDEN") {
+                Button(
+                    onClick = { },
+                    enabled = false,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = Color(0xFFF5F5F5),
+                        disabledContentColor = TextGray
+                    )
+                ) {
+                    Text("KHÔNG KHẢ DỤNG", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+            } else if (isFree) {
                 when (adoptionStatus) {
                     "PENDING" -> {
                         Button(
                             onClick = onCancelAdoptionClick,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Gray,
-                                contentColor = Color.White
+                                containerColor = Color(0xFFF5F5F5),
+                                contentColor = TextGray
                             )
                         ) {
-                            Icon(Icons.Default.AccessTime, contentDescription = "Đã gửi", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đã gửi đơn", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Đã gửi đơn (Hủy)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                     "APPROVED" -> {
                         Button(
                             onClick = { },
                             enabled = false,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp),
                             colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = Color(0xFF4CAF50),
-                                disabledContentColor = Color.White
+                                disabledContainerColor = SuccessGreen.copy(alpha = 0.15f),
+                                disabledContentColor = SuccessGreen
                             )
                         ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Đã duyệt", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đã duyệt", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Đã được duyệt", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                     "REJECTED" -> {
                         Button(
                             onClick = { },
                             enabled = false,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp),
                             colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = Color.Red.copy(alpha = 0.7f),
-                                disabledContentColor = Color.White
+                                disabledContainerColor = ErrorRed.copy(alpha = 0.1f),
+                                disabledContentColor = ErrorRed
                             )
                         ) {
-                            Icon(Icons.Default.Cancel, contentDescription = "Từ chối", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Bị từ chối", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Bị từ chối", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                     else -> {
-                        // Adopt Button
+                        // Adopt Button - Premium Shopee style
                         Button(
                             onClick = onAdoptClick,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(50.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = PrimaryPeach,
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Default.Pets, contentDescription = "Nhận nuôi", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Nhận nuôi", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("ĐĂNG KÝ NHẬN NUÔI", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                 }
             } else {
-                // Chat Button for paid pets - Trò chuyện trực tiếp với người bán
+                // Chat Button for paid pets - Premium style
                 Button(
                     onClick = onChatClick,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    modifier = Modifier.weight(1f).height(50.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFE6D7CB), // Beige color like in image
                         contentColor = Color(0xFF5D4037)  // Deep brown for text/icon
                     )
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Trò chuyện", modifier = Modifier.size(22.dp))
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text("Trò chuyện trực tiếp với người bán", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("LIÊN HỆ NGAY", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }

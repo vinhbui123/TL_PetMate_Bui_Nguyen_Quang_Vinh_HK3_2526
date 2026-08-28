@@ -113,14 +113,19 @@ fun AdoptionManagementScreen(currentUserId: Long? = null, onBack: (() -> Unit)? 
                     selectedTabIndex == 1 && receivedApplications.isEmpty() -> {
                         Text("Chưa có đơn đăng ký nhận nuôi nào.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
                     }
-                    selectedTabIndex == 2 && receivedApplications.none { it.status == "APPROVED" } -> {
+                    selectedTabIndex == 2 && sentApplications.none { it.status == "APPROVED" || it.status == "REJECTED" } && receivedApplications.none { it.status == "APPROVED" } -> {
                         Text("Chưa có bé nào được cho nhận nuôi thành công.", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
                     }
                     else -> {
                         val currentList = when (selectedTabIndex) {
                             0 -> sentApplications
-                            1 -> receivedApplications
-                            else -> receivedApplications.filter { it.status == "APPROVED" }
+                            1 -> receivedApplications.filter { it.status == "PENDING" || it.status == "REJECTED" || it.status == "APPROVED" }
+                            else -> {
+                                // Lịch sử: gộp đơn đã gửi (APPROVED/REJECTED) + đơn đã nhận (APPROVED)
+                                val sentHistory = sentApplications.filter { it.status == "APPROVED" || it.status == "REJECTED" }
+                                val receivedHistory = receivedApplications.filter { it.status == "APPROVED" }
+                                (sentHistory + receivedHistory).distinctBy { it.id }
+                            }
                         }
                         
                         LazyColumn(

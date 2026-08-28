@@ -189,14 +189,30 @@ fun NavGraph(
                 onRefresh()
                 onPop()
             }
+            val room = currentScreen.chatRoom
             ChatScreen(
-                roomId = currentScreen.chatRoom.id,
+                roomId = room.id,
                 currentUserId = currentUser?.id ?: 0L,
-                otherUserName = currentScreen.chatRoom.otherUser.fullName,
-                otherUserId = currentScreen.chatRoom.otherUser.id,
+                otherUserName = room.otherUser.fullName,
+                otherUserId = room.otherUser.id,
+                otherUserAvatarUrl = room.otherUser.avatarUrl,
+                petId = room.pet.id.toLong(),
+                petName = room.pet.name,
+                petImageUrl = room.pet.imageUrl,
+                petPrice = room.pet.price,
                 onBack = {
                     onRefresh()
                     onPop()
+                },
+                onNavigateToProfile = { userId ->
+                    if (userId == room.otherUser.id) {
+                        onNavigate(Screen.SellerProfile(room.otherUser))
+                    }
+                },
+                onNavigateToPet = { petId ->
+                    if (petId == room.pet.id.toLong()) {
+                        onNavigate(Screen.PetDetails(room.pet))
+                    }
                 }
             )
         }
