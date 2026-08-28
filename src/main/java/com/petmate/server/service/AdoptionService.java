@@ -51,27 +51,34 @@ public class AdoptionService {
         AdoptionApplication savedApp = adoptionRepo.save(app);
 
         try {
-            Optional.of(applicant.getId())
-                    .filter(id -> !id.equals(pet.getUser().getId()))
-                    .ifPresent(applicantId -> {
-                        ChatRoomResponse room = chatService.getOrCreateRoom(applicantId, pet.getUser().getId(), pet.getId());
+            // Xác định người nhận: nếu pet thuộc org thì lấy user chủ org, ngược lại lấy user trực tiếp
+            User petOwner = null;
+            if (pet.getUser() != null) {
+                petOwner = pet.getUser();
+            } else if (pet.getOrganization() != null && pet.getOrganization().getUser() != null) {
+                petOwner = pet.getOrganization().getUser();
+            }
 
-                        String autoMessage = "Xin chÃ o, tÃ´i vá»«a ná»™p Ä‘Æ¡n xin nháº­n nuÃ´i bÃ© " + pet.getName() + ".\n\n" +
-                                             "Lá»i giá»›i thiá»‡u: " + request.getMessage() + "\n" +
-                                             "Kinh nghiá»‡m: " + request.getExperience() + "\n\n" +
-                                             "Mong báº¡n xem xÃ©t nhÃ©!";
+            final User finalPetOwner = petOwner;
+            if (finalPetOwner != null && !applicant.getId().equals(finalPetOwner.getId())) {
+                ChatRoomResponse room = chatService.getOrCreateRoom(applicant.getId(), finalPetOwner.getId(), pet.getId());
 
-                        chatService.saveMessage(ChatMessagePayload.builder()
-                                .type("CHAT")
-                                .roomId(room.getId())
-                                .senderId(applicantId)
-                                .recipientId(pet.getUser().getId())
-                                .content(autoMessage)
-                                .senderName(applicant.getFullName())
-                                .build());
-                    });
+                String autoMessage = "Xin chào, tôi vừa nộp đơn xin nhận nuôi bé " + pet.getName() + ".\n\n" +
+                                     "Lời giới thiệu: " + request.getMessage() + "\n" +
+                                     "Kinh nghiệm: " + request.getExperience() + "\n\n" +
+                                     "Mong bạn xem xét nhé!";
+
+                chatService.saveMessage(ChatMessagePayload.builder()
+                        .type("CHAT")
+                        .roomId(room.getId())
+                        .senderId(applicant.getId())
+                        .recipientId(finalPetOwner.getId())
+                        .content(autoMessage)
+                        .senderName(applicant.getFullName())
+                        .build());
+            }
         } catch (Exception e) {
-            System.err.println("Lá»—i tá»± Ä‘á»™ng gá»­i tin nháº¯n nháº­n nuÃ´i: " + e.getMessage());
+            System.err.println("Lỗi tự động gửi tin nhắn nhận nuôi: " + e.getMessage());
         }
 
         return AdoptionResponse.fromEntity(savedApp);
@@ -87,8 +94,16 @@ public class AdoptionService {
 
     public List<AdoptionResponse> getReceivedApplications(Jwt jwt) {
         String uid = jwt.getSubject();
-        return adoptionRepo.findByPet_User_ProviderId(uid)
-                .stream()
+        User currentUser = userService.getCurrentUserOrThrow(jwt);
+
+        // Đơn gửi cho pet cá nhân (pet.user = current user)
+        List<AdoptionApplication> personal = adoptionRepo.findByPet_User_ProviderId(uid);
+
+        // Đơn gửi cho pet của org mà user là chủ sở hữu
+        List<AdoptionApplication> orgApps = adoptionRepo.findByPet_Organization_User_Id(currentUser.getId());
+
+        return java.util.stream.Stream.concat(personal.stream(), orgApps.stream())
+                .distinct()
                 .map(AdoptionResponse::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -118,14 +133,14 @@ public class AdoptionService {
         app.setStatus(status);
         AdoptionApplication updatedApp = adoptionRepo.save(app);
 
-        // Gá»­i thÃ´ng bÃ¡o Ä‘áº¿n ngÆ°á»i nháº­n nuÃ´i
+        // Gửi thông báo đến người nhận nuôi
         try {
-            String title = "Cáº­p nháº­t Ä‘Æ¡n nháº­n nuÃ´i";
+            String title = "Cập nhật đơn nhận nuôi";
             String body = "";
             if (status == AdoptionStatus.APPROVED) {
-                body = "ChÃºc má»«ng! ÄÆ¡n xin nháº­n nuÃ´i bÃ© " + app.getPet().getName() + " cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t.";
+                body = "Chúc mừng! Đơn xin nhận nuôi bé " + app.getPet().getName() + " của bạn đã được duyệt.";
             } else if (status == AdoptionStatus.REJECTED) {
-                body = "Ráº¥t tiáº¿c, Ä‘Æ¡n xin nháº­n nuÃ´i bÃ© " + app.getPet().getName() + " cá»§a báº¡n Ä‘Ã£ bá»‹ tá»« chá»‘i.";
+                body = "Rất tiếc, đơn xin nhận nuôi bé " + app.getPet().getName() + " của bạn đã bị từ chối.";
             }
             
             if (!body.isEmpty()) {
@@ -137,7 +152,7 @@ public class AdoptionService {
                 );
             }
         } catch (Exception e) {
-            System.err.println("Lá»—i gá»­i thÃ´ng bÃ¡o: " + e.getMessage());
+            System.err.println("Lỗi gửi thông báo: " + e.getMessage());
         }
         
         return AdoptionResponse.fromEntity(updatedApp);

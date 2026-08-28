@@ -47,7 +47,7 @@ firebase:
 
 groq:
   api:
-    key: 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
+    key: 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
     url: https://api.groq.com/openai/v1/chat/completions
   model:
     id: openai/gpt-oss-120b
